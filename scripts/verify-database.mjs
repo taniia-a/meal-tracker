@@ -26,11 +26,18 @@ try {
       AND tablename IN ('profiles', 'recipes', 'recipe_ingredients', 'meal_entries')
     ORDER BY tablename, policyname
   `);
+  const profileColumns = await client.query(`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'profiles'
+      AND column_name IN ('birth_year', 'metabolic_sex', 'height_cm', 'weight_kg', 'activity_level', 'nutrition_goal', 'onboarding_completed')
+  `);
 
   console.log('Tabelas:', tables.rows);
   console.log('Políticas:', policies.rows);
 
-  if (tables.rowCount !== 4 || tables.rows.some((table) => !table.rowsecurity) || policies.rowCount !== 4) {
+  if (tables.rowCount !== 4 || tables.rows.some((table) => !table.rowsecurity) || policies.rowCount !== 4 || profileColumns.rowCount !== 7) {
     throw new Error('A estrutura ou as políticas RLS estão incompletas');
   }
 } finally {

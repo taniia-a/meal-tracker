@@ -14,9 +14,24 @@ CREATE TABLE IF NOT EXISTS profiles (
   protein_goal NUMERIC(7,2) NOT NULL DEFAULT 130 CHECK (protein_goal >= 0),
   carbs_goal NUMERIC(7,2) NOT NULL DEFAULT 230 CHECK (carbs_goal >= 0),
   fat_goal NUMERIC(7,2) NOT NULL DEFAULT 65 CHECK (fat_goal >= 0),
+  birth_year INTEGER,
+  metabolic_sex TEXT CHECK (metabolic_sex IN ('female', 'male')),
+  height_cm NUMERIC(6,2),
+  weight_kg NUMERIC(6,2),
+  activity_level TEXT CHECK (activity_level IN ('sedentary', 'light', 'moderate', 'very-active', 'extra-active')),
+  nutrition_goal TEXT CHECK (nutrition_goal IN ('lose', 'maintain', 'gain')),
+  onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS birth_year INTEGER;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS metabolic_sex TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS height_cm NUMERIC(6,2);
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS weight_kg NUMERIC(6,2);
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS activity_level TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS nutrition_goal TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Receitas são globais: qualquer utilizador autenticado pode consultá-las.
 -- A criação/edição será feita posteriormente por uma API de administração.
@@ -91,3 +106,6 @@ CREATE POLICY meal_entries_own_rows ON meal_entries
 GRANT SELECT, INSERT, UPDATE, DELETE ON profiles TO authenticated;
 GRANT SELECT ON recipes, recipe_ingredients TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON meal_entries TO authenticated;
+
+-- Keep the Data API schema cache in sync after migrations.
+NOTIFY pgrst, 'reload schema';

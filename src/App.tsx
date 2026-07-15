@@ -7,10 +7,11 @@ import DashboardPage from './pages/DashboardPage';
 import DiaryPage from './pages/DiaryPage';
 import RecipesPage from './pages/RecipesPage';
 import SettingsPage from './pages/SettingsPage';
+import { MealProvider } from './store/MealContext';
 
 export default function App() {
   if (!authClient) {
-    return <div className="grid min-h-screen place-items-center bg-cream p-5"><div className="card max-w-lg p-8 text-center"><h1 className="text-2xl font-extrabold">Falta configurar o Neon Auth</h1><p className="mt-3 text-stone-400">Adiciona o URL de autenticação à variável <code className="rounded bg-white/5 px-2 py-1 text-leaf-700">VITE_NEON_AUTH_URL</code> no ficheiro <code>.env.local</code> e reinicia o servidor.</p></div></div>;
+    return <div className="grid min-h-screen place-items-center bg-cream p-5"><div className="card max-w-lg p-8 text-center"><h1 className="text-2xl font-extrabold">Falta configurar o Neon</h1><p className="mt-3 text-stone-400">Adiciona <code className="rounded bg-white/5 px-2 py-1 text-leaf-700">VITE_NEON_AUTH_URL</code> e <code className="rounded bg-white/5 px-2 py-1 text-leaf-700">VITE_NEON_DATA_API_URL</code> ao ficheiro <code>.env.local</code> e reinicia o servidor.</p></div></div>;
   }
 
   return <AuthenticatedApp />;
@@ -26,5 +27,5 @@ function AuthenticatedApp() {
 
   if (!session.data?.user) return <AuthPage />;
 
-  return <Layout><Routes><Route path="/" element={<DashboardPage />} /><Route path="/receitas" element={<RecipesPage />} /><Route path="/diario" element={<DiaryPage />} /><Route path="/definicoes" element={<SettingsPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></Layout>;
+  return <MealProvider userId={session.data.user.id}><Layout><Routes><Route path="/" element={<DashboardPage />} /><Route path="/receitas" element={<RecipesPage />} /><Route path="/diario" element={<DiaryPage />} /><Route path="/definicoes" element={<SettingsPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></Layout></MealProvider>;
 }

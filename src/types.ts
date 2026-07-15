@@ -28,3 +28,22 @@ export interface MealEntry extends Macros {
 }
 
 export type NutritionGoals = Macros;
+
+export type MetabolicSex = 'female' | 'male';
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'very-active' | 'extra-active';
+export type NutritionGoal = 'lose' | 'maintain' | 'gain';
+
+export interface NutritionProfileInput {
+  birthYear: number;
+  metabolicSex: MetabolicSex;
+  heightCm: number;
+  weightKg: number;
+  activityLevel: ActivityLevel;
+  nutritionGoal: NutritionGoal;
+}
+
+export interface NutritionProfile extends NutritionProfileInput {
+  userId: string;
+  onboardingCompleted: boolean;
+  goals: NutritionGoals;
+}

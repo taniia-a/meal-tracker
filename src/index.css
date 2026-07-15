@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #15111b;
+  --color-cream: #0e0b13;
+  --color-leaf-50: #251a35;
+  --color-leaf-100: #392552;
+  --color-leaf-500: #9b6ee8;
+  --color-leaf-600: #8152d0;
+  --color-leaf-700: #c5a6ff;
+  --font-display: 'Manrope', sans-serif;
+  --shadow-card: 0 12px 35px rgba(23, 35, 29, 0.07);
+}
+
+:root {
+  font-family: 'DM Sans', sans-serif;
+  color: #f3eef9;
+  background: #0e0b13;
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input, select { font: inherit; }
+h1, h2, h3, .font-display { font-family: 'Manrope', sans-serif; }
+
+.card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-3xl);
+  background: #17121e;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.22);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: var(--radius-2xl);
+  background: #141019;
+  color: #f3eef9;
+  padding: 0.75rem 1rem;
+  outline: none;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+
+.input:focus {
+  border-color: var(--color-leaf-500);
+  box-shadow: 0 0 0 4px var(--color-leaf-100);
+}

@@ -42,15 +42,17 @@ Create a `.env.local` file in the project root:
 touch .env.local
 ```
 
-Add the three values provided by your Neon project:
+Add the values provided by your Neon and Vercel projects:
 
 ```env
 DATABASE_URL=
 VITE_NEON_AUTH_URL=
 VITE_NEON_DATA_API_URL=
+BLOB_STORE_ID=
+BLOB_READ_WRITE_TOKEN=
 ```
 
-`DATABASE_URL` is used only by local migration scripts and must never be exposed in client-side code. Files containing local environment values are excluded from Git.
+`DATABASE_URL`, `BLOB_STORE_ID`, and `BLOB_READ_WRITE_TOKEN` are server-only values and must never be exposed in client-side code. Files containing local environment values are excluded from Git.
 
 Add `http://localhost:5173` to the allowed origins in the Neon Auth configuration, then initialize the database:
 

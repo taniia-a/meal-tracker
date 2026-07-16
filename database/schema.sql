@@ -37,8 +37,10 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT N
 -- A criação/edição será feita posteriormente por uma API de administração.
 CREATE TABLE IF NOT EXISTS recipes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_user_id TEXT NOT NULL DEFAULT (auth.user_id()),
+  is_public BOOLEAN NOT NULL DEFAULT FALSE,
+  image_url TEXT,
   name TEXT NOT NULL,
-  description TEXT NOT NULL DEFAULT '',
   category TEXT NOT NULL,
   instructions TEXT NOT NULL DEFAULT '',
   prep_minutes INTEGER NOT NULL DEFAULT 0 CHECK (prep_minutes >= 0),
@@ -50,6 +52,12 @@ CREATE TABLE IF NOT EXISTS recipes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS owner_user_id TEXT;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE recipes ALTER COLUMN owner_user_id SET DEFAULT (auth.user_id());
+ALTER TABLE recipes DROP COLUMN IF EXISTS description;
 
 CREATE TABLE IF NOT EXISTS recipe_ingredients (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -82,7 +90,13 @@ ALTER TABLE meal_entries ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS profiles_own_rows ON profiles;
 DROP POLICY IF EXISTS recipes_authenticated_read ON recipes;
+DROP POLICY IF EXISTS recipes_owner_insert ON recipes;
+DROP POLICY IF EXISTS recipes_owner_update ON recipes;
+DROP POLICY IF EXISTS recipes_owner_delete ON recipes;
 DROP POLICY IF EXISTS recipe_ingredients_authenticated_read ON recipe_ingredients;
+DROP POLICY IF EXISTS recipe_ingredients_owner_insert ON recipe_ingredients;
+DROP POLICY IF EXISTS recipe_ingredients_owner_update ON recipe_ingredients;
+DROP POLICY IF EXISTS recipe_ingredients_owner_delete ON recipe_ingredients;
 DROP POLICY IF EXISTS meal_entries_own_rows ON meal_entries;
 
 CREATE POLICY profiles_own_rows ON profiles
@@ -92,11 +106,37 @@ CREATE POLICY profiles_own_rows ON profiles
 
 CREATE POLICY recipes_authenticated_read ON recipes
   FOR SELECT TO authenticated
-  USING (TRUE);
+  USING (is_public OR owner_user_id = (SELECT auth.user_id()));
+
+CREATE POLICY recipes_owner_insert ON recipes
+  FOR INSERT TO authenticated
+  WITH CHECK (owner_user_id = (SELECT auth.user_id()));
+
+CREATE POLICY recipes_owner_update ON recipes
+  FOR UPDATE TO authenticated
+  USING (owner_user_id = (SELECT auth.user_id()))
+  WITH CHECK (owner_user_id = (SELECT auth.user_id()));
+
+CREATE POLICY recipes_owner_delete ON recipes
+  FOR DELETE TO authenticated
+  USING (owner_user_id = (SELECT auth.user_id()));
 
 CREATE POLICY recipe_ingredients_authenticated_read ON recipe_ingredients
   FOR SELECT TO authenticated
-  USING (TRUE);
+  USING (EXISTS (SELECT 1 FROM recipes WHERE recipes.id = recipe_id));
+
+CREATE POLICY recipe_ingredients_owner_insert ON recipe_ingredients
+  FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM recipes WHERE recipes.id = recipe_id AND recipes.owner_user_id = (SELECT auth.user_id())));
+
+CREATE POLICY recipe_ingredients_owner_update ON recipe_ingredients
+  FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM recipes WHERE recipes.id = recipe_id AND recipes.owner_user_id = (SELECT auth.user_id())))
+  WITH CHECK (EXISTS (SELECT 1 FROM recipes WHERE recipes.id = recipe_id AND recipes.owner_user_id = (SELECT auth.user_id())));
+
+CREATE POLICY recipe_ingredients_owner_delete ON recipe_ingredients
+  FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM recipes WHERE recipes.id = recipe_id AND recipes.owner_user_id = (SELECT auth.user_id())));
 
 CREATE POLICY meal_entries_own_rows ON meal_entries
   FOR ALL TO authenticated
@@ -104,7 +144,7 @@ CREATE POLICY meal_entries_own_rows ON meal_entries
   WITH CHECK ((SELECT auth.user_id()) = user_id);
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON profiles TO authenticated;
-GRANT SELECT ON recipes, recipe_ingredients TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON recipes, recipe_ingredients TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON meal_entries TO authenticated;
 
 -- Keep the Data API schema cache in sync after migrations.

@@ -5,10 +5,12 @@ import { useMeals } from '../store/MealContext';
 import { MealType } from '../types';
 
 const types: MealType[] = ['Pequeno-almoço', 'Almoço', 'Lanche', 'Jantar'];
+const currentDate = new Date();
+const today = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
 
 export default function DiaryPage() {
   const { entries, removeMeal } = useMeals();
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(today);
   const daily = entries.filter((entry) => entry.date === date);
   const total = sumMacros(daily);
   return (

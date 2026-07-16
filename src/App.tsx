@@ -6,6 +6,8 @@ import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import DiaryPage from './pages/DiaryPage';
 import RecipesPage from './pages/RecipesPage';
+import RecipeEditorPage from './pages/RecipeEditorPage';
+import RecipeDetailPage from './pages/RecipeDetailPage';
 import SettingsPage from './pages/SettingsPage';
 import { MealProvider } from './store/MealContext';
 
@@ -27,5 +29,5 @@ function AuthenticatedApp() {
 
   if (!session.data?.user) return <AuthPage />;
 
-  return <MealProvider userId={session.data.user.id}><Layout><Routes><Route path="/" element={<DashboardPage />} /><Route path="/receitas" element={<RecipesPage />} /><Route path="/diario" element={<DiaryPage />} /><Route path="/definicoes" element={<SettingsPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></Layout></MealProvider>;
+  return <MealProvider userId={session.data.user.id}><Layout><Routes><Route path="/" element={<DashboardPage />} /><Route path="/receitas" element={<RecipesPage />} /><Route path="/receitas/nova" element={<RecipeEditorPage />} /><Route path="/receitas/:recipeId" element={<RecipeDetailPage />} /><Route path="/receitas/:recipeId/editar" element={<RecipeEditorPage />} /><Route path="/diario" element={<DiaryPage />} /><Route path="/definicoes" element={<SettingsPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></Layout></MealProvider>;
 }

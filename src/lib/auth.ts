@@ -15,3 +15,9 @@ export const neonClient = authUrl && dataApiUrl ? createClient({
 }) : null;
 
 export const authClient = neonClient?.auth ?? null;
+
+export async function getAuthToken(): Promise<string | null> {
+  if (!authClient) return null;
+  const session = await authClient.getSession();
+  return session.data?.session.token ?? null;
+}

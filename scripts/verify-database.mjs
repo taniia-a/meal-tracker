@@ -37,7 +37,7 @@ try {
   console.log('Tabelas:', tables.rows);
   console.log('Políticas:', policies.rows);
 
-  if (tables.rowCount !== 4 || tables.rows.some((table) => !table.rowsecurity) || policies.rowCount !== 4 || profileColumns.rowCount !== 7) {
+  if (tables.rowCount !== 4 || tables.rows.some((table) => !table.rowsecurity) || policies.rowCount !== 10 || profileColumns.rowCount !== 7) {
     throw new Error('A estrutura ou as políticas RLS estão incompletas');
   }
 } finally {

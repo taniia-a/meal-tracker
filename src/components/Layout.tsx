@@ -25,7 +25,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <aside className={`${open ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-20 w-72 border-r border-white/10 bg-[#120e18] p-6 transition-transform lg:translate-x-0`}>
+      <aside className={`${open ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-40 w-72 border-r border-white/10 bg-[#120e18] p-6 transition-transform lg:translate-x-0`}>
         <Brand />
         <nav className="mt-12 space-y-2">
           {navigation.map(({ to, label, icon: Icon }) => (

@@ -16,6 +16,9 @@ const english = {
   'Falta configurar o Neon': 'Neon setup required', 'A carregar a tua sessão...': 'Loading your session...', 'A preparar o teu perfil...': 'Preparing your profile...', 'Não foi possível carregar o perfil': 'Could not load profile', 'Tentar novamente': 'Try again', 'Utilizador': 'User', 'Idioma': 'Language',
   'Nome em inglês (opcional)': 'English name (optional)',
   'Preparação em inglês (opcional)': 'English method (optional)',
+  'Dia': 'Day', 'Semana': 'Week', 'Semana atual': 'Current week', 'Semana anterior': 'Previous week', 'Semana seguinte': 'Next week', 'Sem refeições': 'No meals', 'Ver dia': 'View day',
+  'Estado': 'Status', 'Planeada': 'Planned', 'Consumida': 'Consumed', 'Marcar como consumida': 'Mark as consumed', 'Marcar como planeada': 'Mark as planned', 'Totais previstos': 'Planned totals',
+  'As minhas': 'Mine', 'Públicas': 'Public', 'Duplicar receita': 'Duplicate recipe', 'Receita duplicada com sucesso. A cópia é privada.': 'Recipe duplicated successfully. The copy is private.', 'Não foi possível duplicar a receita.': 'Could not duplicate the recipe.', 'Tradução inglesa completa': 'Complete English translation', 'Tradução inglesa em falta': 'English translation missing', 'Experimenta alterar os filtros ou criar uma receita.': 'Try changing the filters or creating a recipe.', 'prot.': 'prot.', 'hidr.': 'carbs', 'gord.': 'fat',
 } as const;
 
 const savedLanguage = localStorage.getItem('meal-tracker-language');

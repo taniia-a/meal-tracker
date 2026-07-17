@@ -81,8 +81,10 @@ CREATE TABLE IF NOT EXISTS meal_entries (
   meal_date DATE NOT NULL DEFAULT CURRENT_DATE,
   meal_type TEXT NOT NULL CHECK (meal_type IN ('Pequeno-almoço', 'Almoço', 'Lanche', 'Jantar')),
   portions NUMERIC(7,2) NOT NULL CHECK (portions > 0),
+  is_consumed BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE meal_entries ADD COLUMN IF NOT EXISTS is_consumed BOOLEAN NOT NULL DEFAULT TRUE;
 
 CREATE INDEX IF NOT EXISTS recipes_name_idx ON recipes (LOWER(name));
 CREATE INDEX IF NOT EXISTS recipe_ingredients_recipe_idx ON recipe_ingredients (recipe_id, position);

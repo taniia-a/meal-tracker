@@ -46,6 +46,7 @@ export interface MealEntry extends Macros {
   date: string;
   mealType: MealType;
   portions: number;
+  isConsumed: boolean;
 }
 
 export type NutritionGoals = Macros;

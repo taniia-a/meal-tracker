@@ -14,18 +14,14 @@ interface MealContextValue {
   updateProfile: (profile: NutritionProfileInput, goals: NutritionGoals) => Promise<void>;
   saveRecipe: (recipe: RecipeInput, recipeId?: string) => Promise<void>;
   deleteRecipe: (recipeId: string) => Promise<void>;
-  addMeal: (recipe: Recipe, mealType: MealType, portions: number, date?: string) => Promise<void>;
+  addMeal: (recipe: Recipe, mealType: MealType, portions: number, date: string) => Promise<void>;
   updateMeal: (entryId: string, recipe: Recipe, mealType: MealType, portions: number, date: string) => Promise<void>;
   removeMeal: (id: string) => Promise<void>;
 }
 
 const MealContext = createContext<MealContextValue | null>(null);
-const today = () => {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-};
-
 const defaultGoals: NutritionGoals = { calories: 2000, protein: 130, carbs: 230, fat: 65 };
+const localToday = () => { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; };
 const recipeColumns = 'id, owner_user_id, is_public, image_url, name, name_en, category, instructions, instructions_en, prep_minutes, servings, calories, protein, carbs, fat';
 
 export function MealProvider({ children, userId }: { children: ReactNode; userId: string }) {
@@ -100,7 +96,7 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
       if (ingredientResult.error) { setProfileError(ingredientResult.error.message); setIsRecipesLoading(false); return; }
       const loadedRecipes = (recipeRows ?? []).map((row) => { const items = (ingredientResult.data ?? []).filter((item) => item.recipe_id === row.id); return mapRecipe(row, items.map((item) => item.name), items.map((item) => item.name_en ?? '')); });
       setRecipes(loadedRecipes);
-      const entryResult = await neonClient.from('meal_entries').select('id, recipe_id, meal_date, meal_type, portions').order('created_at', { ascending: true });
+      const entryResult = await neonClient.from('meal_entries').select('id, recipe_id, meal_date, meal_type, portions, is_consumed').order('created_at', { ascending: true });
       if (!isActive) return;
       if (entryResult.error) { setProfileError(entryResult.error.message); setIsRecipesLoading(false); return; }
       setEntries((entryResult.data ?? []).flatMap((row) => {
@@ -189,11 +185,11 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
     setRecipes((current) => current.filter((recipe) => recipe.id !== recipeId));
   };
 
-  const addMeal = async (recipe: Recipe, mealType: MealType, portions: number, date = today()) => {
+  const addMeal = async (recipe: Recipe, mealType: MealType, portions: number, date: string) => {
     if (!neonClient) throw new Error('O cliente Neon não está configurado.');
     const { data, error } = await neonClient.from('meal_entries').insert({
-      user_id: userId, recipe_id: recipe.id, meal_date: date, meal_type: mealType, portions,
-    }).select('id, recipe_id, meal_date, meal_type, portions').single();
+      user_id: userId, recipe_id: recipe.id, meal_date: date, meal_type: mealType, portions, is_consumed: date <= localToday(),
+    }).select('id, recipe_id, meal_date, meal_type, portions, is_consumed').single();
     if (error || !data) throw new Error(error?.message || 'A base de dados não confirmou o registo da refeição.');
     setEntries((current) => [...current, mapMealEntry(data, recipe)]);
   };
@@ -201,8 +197,8 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
   const updateMeal = async (entryId: string, recipe: Recipe, mealType: MealType, portions: number, date: string) => {
     if (!neonClient) throw new Error('O cliente Neon não está configurado.');
     const { data, error } = await neonClient.from('meal_entries').update({
-      meal_date: date, meal_type: mealType, portions,
-    }).eq('id', entryId).select('id, recipe_id, meal_date, meal_type, portions').single();
+      meal_date: date, meal_type: mealType, portions, is_consumed: date <= localToday(),
+    }).eq('id', entryId).select('id, recipe_id, meal_date, meal_type, portions, is_consumed').single();
     if (error || !data) throw new Error(error?.message || 'A base de dados não confirmou as alterações.');
     const updated = mapMealEntry(data, recipe);
     setEntries((current) => current.map((entry) => entry.id === entryId ? updated : entry));
@@ -251,7 +247,7 @@ function mapRecipe(row: RecipeRow, ingredients: string[], ingredientsEn: string[
 }
 
 interface MealEntryRow {
-  id: string; recipe_id: string; meal_date: string; meal_type: MealType; portions: number | string;
+  id: string; recipe_id: string; meal_date: string; meal_type: MealType; portions: number | string; is_consumed: boolean;
 }
 
 function mapMealEntry(row: MealEntryRow, recipe: Recipe): MealEntry {
@@ -259,7 +255,7 @@ function mapMealEntry(row: MealEntryRow, recipe: Recipe): MealEntry {
   const scale = (value: number) => Math.round(value * portions * 10) / 10;
   return {
     id: row.id, recipeId: row.recipe_id, recipeName: recipe.name, recipeNameEn: recipe.nameEn, date: row.meal_date,
-    mealType: row.meal_type, portions, calories: scale(recipe.calories),
+    mealType: row.meal_type, portions, isConsumed: row.meal_date <= localToday(), calories: scale(recipe.calories),
     protein: scale(recipe.protein), carbs: scale(recipe.carbs), fat: scale(recipe.fat),
   };
 }

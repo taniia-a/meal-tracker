@@ -27,6 +27,15 @@ body { margin: 0; min-width: 320px; min-height: 100vh; }
 button, input, select { font: inherit; }
 h1, h2, h3, .font-display { font-family: 'Manrope', sans-serif; }
 
+@keyframes toast-out {
+  0%, 80% { opacity: 1; transform: translateY(0); visibility: visible; }
+  100% { opacity: 0; transform: translateY(-0.5rem); visibility: hidden; }
+}
+
+.animate-toast-out {
+  animation: toast-out 3.5s ease forwards;
+}
+
 .card {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-3xl);

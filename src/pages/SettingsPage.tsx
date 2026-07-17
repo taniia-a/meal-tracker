@@ -1,5 +1,9 @@
-export default function SettingsPage() {
-  return <div className="mx-auto max-w-3xl"><p className="font-semibold text-leaf-600">Preferências</p><h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">Definições</h1><section className="card mt-8 p-7"><h2 className="text-xl font-bold">Objetivos nutricionais</h2><p className="mt-2 text-stone-500">A edição dos objetivos e o perfil de utilizador serão ligados à base de dados na próxima fase.</p><div className="mt-6 grid gap-4 sm:grid-cols-2"><Field label="Calorias diárias" value="2000" unit="kcal" /><Field label="Proteína" value="130" unit="g" /><Field label="Hidratos" value="230" unit="g" /><Field label="Gordura" value="65" unit="g" /></div><button disabled className="mt-6 rounded-2xl bg-stone-200 px-5 py-3 font-bold text-stone-400">Guardar alterações</button></section></div>;
-}
+import NutritionProfileForm from '../components/NutritionProfileForm';
+import { useMeals } from '../store/MealContext';
+import { useTranslation } from 'react-i18next';
 
-function Field({ label, value, unit }: { label: string; value: string; unit: string }) { return <label className="text-sm font-semibold">{label}<div className="relative mt-2"><input disabled className="input bg-white/5 pr-14 text-stone-400" value={value} /><span className="absolute right-4 top-3 text-stone-400">{unit}</span></div></label>; }
+export default function SettingsPage() {
+  const { profile, updateProfile } = useMeals();
+  const { t } = useTranslation();
+  return <div className="mx-auto max-w-3xl"><p className="font-semibold text-leaf-700">{t('Preferências')}</p><h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">{t('Definições')}</h1><p className="mt-2 text-stone-400">{t('Atualiza os teus dados, recalcula o plano ou define objetivos manualmente.')}</p><section className="card mt-8 p-7"><NutritionProfileForm initialProfile={profile} initialGoals={profile.goals} submitLabel={t('Guardar alterações')} onSave={updateProfile} /></section></div>;
+}

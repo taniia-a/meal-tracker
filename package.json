@@ -13,10 +13,13 @@
   },
   "dependencies": {
     "@neondatabase/neon-js": "^0.6.2-beta",
+    "@vercel/blob": "^2.6.1",
+    "i18next": "^26.3.6",
     "lucide-react": "^1.24.0",
     "pg": "^8.22.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-i18next": "^17.0.10",
     "react-router-dom": "^7.18.1"
   },
   "devDependencies": {

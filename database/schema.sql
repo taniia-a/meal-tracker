@@ -14,18 +14,37 @@ CREATE TABLE IF NOT EXISTS profiles (
   protein_goal NUMERIC(7,2) NOT NULL DEFAULT 130 CHECK (protein_goal >= 0),
   carbs_goal NUMERIC(7,2) NOT NULL DEFAULT 230 CHECK (carbs_goal >= 0),
   fat_goal NUMERIC(7,2) NOT NULL DEFAULT 65 CHECK (fat_goal >= 0),
+  birth_year INTEGER,
+  metabolic_sex TEXT CHECK (metabolic_sex IN ('female', 'male')),
+  height_cm NUMERIC(6,2),
+  weight_kg NUMERIC(6,2),
+  activity_level TEXT CHECK (activity_level IN ('sedentary', 'light', 'moderate', 'very-active', 'extra-active')),
+  nutrition_goal TEXT CHECK (nutrition_goal IN ('lose', 'maintain', 'gain')),
+  onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS birth_year INTEGER;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS metabolic_sex TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS height_cm NUMERIC(6,2);
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS weight_kg NUMERIC(6,2);
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS activity_level TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS nutrition_goal TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Receitas são globais: qualquer utilizador autenticado pode consultá-las.
 -- A criação/edição será feita posteriormente por uma API de administração.
 CREATE TABLE IF NOT EXISTS recipes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_user_id TEXT NOT NULL DEFAULT (auth.user_id()),
+  is_public BOOLEAN NOT NULL DEFAULT FALSE,
+  image_url TEXT,
   name TEXT NOT NULL,
-  description TEXT NOT NULL DEFAULT '',
+  name_en TEXT,
   category TEXT NOT NULL,
   instructions TEXT NOT NULL DEFAULT '',
+  instructions_en TEXT,
   prep_minutes INTEGER NOT NULL DEFAULT 0 CHECK (prep_minutes >= 0),
   servings NUMERIC(7,2) NOT NULL DEFAULT 1 CHECK (servings > 0),
   calories NUMERIC(9,2) NOT NULL CHECK (calories >= 0),
@@ -36,14 +55,24 @@ CREATE TABLE IF NOT EXISTS recipes (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS owner_user_id TEXT;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS name_en TEXT;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS instructions_en TEXT;
+ALTER TABLE recipes ALTER COLUMN owner_user_id SET DEFAULT (auth.user_id());
+ALTER TABLE recipes DROP COLUMN IF EXISTS description;
+
 CREATE TABLE IF NOT EXISTS recipe_ingredients (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   recipe_id UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
+  name_en TEXT,
   quantity NUMERIC(9,2),
   unit TEXT,
   position INTEGER NOT NULL DEFAULT 0
 );
+ALTER TABLE recipe_ingredients ADD COLUMN IF NOT EXISTS name_en TEXT;
 
 CREATE TABLE IF NOT EXISTS meal_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -52,8 +81,10 @@ CREATE TABLE IF NOT EXISTS meal_entries (
   meal_date DATE NOT NULL DEFAULT CURRENT_DATE,
   meal_type TEXT NOT NULL CHECK (meal_type IN ('Pequeno-almoço', 'Almoço', 'Lanche', 'Jantar')),
   portions NUMERIC(7,2) NOT NULL CHECK (portions > 0),
+  is_consumed BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE meal_entries ADD COLUMN IF NOT EXISTS is_consumed BOOLEAN NOT NULL DEFAULT TRUE;
 
 CREATE INDEX IF NOT EXISTS recipes_name_idx ON recipes (LOWER(name));
 CREATE INDEX IF NOT EXISTS recipe_ingredients_recipe_idx ON recipe_ingredients (recipe_id, position);
@@ -67,7 +98,13 @@ ALTER TABLE meal_entries ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS profiles_own_rows ON profiles;
 DROP POLICY IF EXISTS recipes_authenticated_read ON recipes;
+DROP POLICY IF EXISTS recipes_owner_insert ON recipes;
+DROP POLICY IF EXISTS recipes_owner_update ON recipes;
+DROP POLICY IF EXISTS recipes_owner_delete ON recipes;
 DROP POLICY IF EXISTS recipe_ingredients_authenticated_read ON recipe_ingredients;
+DROP POLICY IF EXISTS recipe_ingredients_owner_insert ON recipe_ingredients;
+DROP POLICY IF EXISTS recipe_ingredients_owner_update ON recipe_ingredients;
+DROP POLICY IF EXISTS recipe_ingredients_owner_delete ON recipe_ingredients;
 DROP POLICY IF EXISTS meal_entries_own_rows ON meal_entries;
 
 CREATE POLICY profiles_own_rows ON profiles
@@ -77,11 +114,37 @@ CREATE POLICY profiles_own_rows ON profiles
 
 CREATE POLICY recipes_authenticated_read ON recipes
   FOR SELECT TO authenticated
-  USING (TRUE);
+  USING (is_public OR owner_user_id = (SELECT auth.user_id()));
+
+CREATE POLICY recipes_owner_insert ON recipes
+  FOR INSERT TO authenticated
+  WITH CHECK (owner_user_id = (SELECT auth.user_id()));
+
+CREATE POLICY recipes_owner_update ON recipes
+  FOR UPDATE TO authenticated
+  USING (owner_user_id = (SELECT auth.user_id()))
+  WITH CHECK (owner_user_id = (SELECT auth.user_id()));
+
+CREATE POLICY recipes_owner_delete ON recipes
+  FOR DELETE TO authenticated
+  USING (owner_user_id = (SELECT auth.user_id()));
 
 CREATE POLICY recipe_ingredients_authenticated_read ON recipe_ingredients
   FOR SELECT TO authenticated
-  USING (TRUE);
+  USING (EXISTS (SELECT 1 FROM recipes WHERE recipes.id = recipe_id));
+
+CREATE POLICY recipe_ingredients_owner_insert ON recipe_ingredients
+  FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM recipes WHERE recipes.id = recipe_id AND recipes.owner_user_id = (SELECT auth.user_id())));
+
+CREATE POLICY recipe_ingredients_owner_update ON recipe_ingredients
+  FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM recipes WHERE recipes.id = recipe_id AND recipes.owner_user_id = (SELECT auth.user_id())))
+  WITH CHECK (EXISTS (SELECT 1 FROM recipes WHERE recipes.id = recipe_id AND recipes.owner_user_id = (SELECT auth.user_id())));
+
+CREATE POLICY recipe_ingredients_owner_delete ON recipe_ingredients
+  FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM recipes WHERE recipes.id = recipe_id AND recipes.owner_user_id = (SELECT auth.user_id())));
 
 CREATE POLICY meal_entries_own_rows ON meal_entries
   FOR ALL TO authenticated
@@ -89,5 +152,8 @@ CREATE POLICY meal_entries_own_rows ON meal_entries
   WITH CHECK ((SELECT auth.user_id()) = user_id);
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON profiles TO authenticated;
-GRANT SELECT ON recipes, recipe_ingredients TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON recipes, recipe_ingredients TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON meal_entries TO authenticated;
+
+-- Keep the Data API schema cache in sync after migrations.
+NOTIFY pgrst, 'reload schema';

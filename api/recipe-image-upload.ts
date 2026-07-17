@@ -6,25 +6,34 @@ async function isAuthenticated(token: string): Promise<boolean> {
   const dataApiUrl = process.env.VITE_NEON_DATA_API_URL;
   if (!dataApiUrl) return false;
 
-  const response = await fetch(`${dataApiUrl.replace(/\/$/, '')}/profiles?select=user_id&limit=1`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/json',
-    },
-  });
-  if (!response.ok) return false;
-  const profiles = await response.json() as unknown[];
-  return profiles.length === 1;
+  try {
+    const response = await fetch(`${dataApiUrl.replace(/\/$/, '')}/profiles?select=user_id&limit=1`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return false;
+    const profiles = await response.json() as unknown[];
+    return profiles.length === 1;
+  } catch {
+    return false;
+  }
 }
 
 export default async function handler(request: Request): Promise<Response> {
   if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!blobToken) return Response.json({ error: 'O Vercel Blob não está configurado no ambiente de produção.' }, { status: 500 });
 
   try {
     const body = await request.json() as HandleUploadBody;
     const result = await handleUpload({
       request,
       body,
+      token: blobToken,
       onBeforeGenerateToken: async (_pathname, clientPayload) => {
         let payload: { token?: string };
         try {

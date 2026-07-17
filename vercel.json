@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/neon-auth/:path*",
-      "destination": "https://ep-proud-dust-aswnabbl.neonauth.c-4.eu-central-1.aws.neon.tech/neondb/auth/:path*"
+      "destination": "/api/neon-auth?path=:path*"
     },
     { "source": "/(.*)", "destination": "/index.html" }
   ]

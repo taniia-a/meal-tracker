@@ -4,6 +4,7 @@ import { MealEntry, MealType, Recipe } from '../types';
 import { useMeals } from '../store/MealContext';
 import { useTranslation } from 'react-i18next';
 import { recipeName } from '../lib/recipe-language';
+import NumberInput from './NumberInput';
 
 const mealTypes: MealType[] = ['Pequeno-almoço', 'Almoço', 'Lanche', 'Jantar'];
 const formatLocalDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -49,7 +50,7 @@ export default function AddMealModal({ recipe, entry, onClose }: { recipe: Recip
         <div className="mt-2 flex items-center gap-2"><button type="button" onClick={() => setDate(currentDate())} className={`rounded-xl px-3 py-1.5 text-xs font-bold ${date === currentDate() ? 'bg-leaf-600 text-white' : 'bg-white/5 text-stone-400 hover:text-white'}`}>{t('Hoje')}</button><button type="button" onClick={() => setDate(previousDate())} className={`rounded-xl px-3 py-1.5 text-xs font-bold ${date === previousDate() ? 'bg-leaf-600 text-white' : 'bg-white/5 text-stone-400 hover:text-white'}`}>{t('Ontem')}</button></div>
         {new Date().getHours() < 4 && date === previousDate() && <p className="mt-2 text-xs text-stone-400">{t('Como ainda é antes das 04:00, sugerimos o dia anterior. Podes alterar se necessário.')}</p>}
         <label className="mt-5 block text-sm font-semibold">{t('Tipo de refeição')}<select className="input mt-2" value={mealType} onChange={(e) => setMealType(e.target.value as MealType)}>{mealTypes.map((type) => <option key={type} value={type}>{t(type)}</option>)}</select></label>
-        <label className="mt-4 block text-sm font-semibold">{t('Número de porções')}<input className="input mt-2" type="number" min="0.25" step="0.25" value={portions} onChange={(e) => setPortions(Math.max(0.25, Number(e.target.value)))} /></label>
+        <label className="mt-4 block text-sm font-semibold">{t('Número de porções')}<NumberInput className="input mt-2" min="0.25" step="0.25" required value={portions} onValueChange={(value) => setPortions(Math.max(0.25, value))} /></label>
         <div className="mt-5 rounded-2xl bg-leaf-50 p-4 text-sm text-leaf-700"><strong>{Math.round(recipe.calories * portions)} kcal</strong> · {Math.round(recipe.protein * portions)}g {t('proteína')} · {Math.round(recipe.carbs * portions)}g {t('hidratos')} · {Math.round(recipe.fat * portions)}g {t('gordura')}</div>
         {status !== 'idle' && <div role="status" className={`mt-5 flex items-center gap-2 rounded-2xl p-4 text-sm font-semibold ${status === 'success' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-rose-500/10 text-rose-300'}`}>{status === 'success' ? <CheckCircle2 size={19} /> : <AlertCircle size={19} />}<span>{message}</span></div>}
         <button disabled={status === 'success'} className="mt-6 w-full rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white hover:bg-leaf-700 disabled:opacity-60">{t(status === 'success' ? (entry ? 'Alterações guardadas' : 'Registado') : (entry ? 'Guardar alterações' : 'Adicionar ao diário'))}</button>

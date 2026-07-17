@@ -41,8 +41,10 @@ CREATE TABLE IF NOT EXISTS recipes (
   is_public BOOLEAN NOT NULL DEFAULT FALSE,
   image_url TEXT,
   name TEXT NOT NULL,
+  name_en TEXT,
   category TEXT NOT NULL,
   instructions TEXT NOT NULL DEFAULT '',
+  instructions_en TEXT,
   prep_minutes INTEGER NOT NULL DEFAULT 0 CHECK (prep_minutes >= 0),
   servings NUMERIC(7,2) NOT NULL DEFAULT 1 CHECK (servings > 0),
   calories NUMERIC(9,2) NOT NULL CHECK (calories >= 0),
@@ -56,6 +58,8 @@ CREATE TABLE IF NOT EXISTS recipes (
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS owner_user_id TEXT;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS name_en TEXT;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS instructions_en TEXT;
 ALTER TABLE recipes ALTER COLUMN owner_user_id SET DEFAULT (auth.user_id());
 ALTER TABLE recipes DROP COLUMN IF EXISTS description;
 
@@ -63,10 +67,12 @@ CREATE TABLE IF NOT EXISTS recipe_ingredients (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   recipe_id UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
+  name_en TEXT,
   quantity NUMERIC(9,2),
   unit TEXT,
   position INTEGER NOT NULL DEFAULT 0
 );
+ALTER TABLE recipe_ingredients ADD COLUMN IF NOT EXISTS name_en TEXT;
 
 CREATE TABLE IF NOT EXISTS meal_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

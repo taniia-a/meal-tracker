@@ -3,6 +3,7 @@ import { createContext, ReactNode, useContext, useEffect, useState } from 'react
 import { neonClient } from '../lib/auth';
 import OnboardingPage from '../pages/OnboardingPage';
 import { MealEntry, MealType, NutritionGoals, NutritionProfile, NutritionProfileInput, Recipe, RecipeInput } from '../types';
+import { useTranslation } from 'react-i18next';
 
 interface MealContextValue {
   recipes: Recipe[];
@@ -14,6 +15,7 @@ interface MealContextValue {
   saveRecipe: (recipe: RecipeInput, recipeId?: string) => Promise<void>;
   deleteRecipe: (recipeId: string) => Promise<void>;
   addMeal: (recipe: Recipe, mealType: MealType, portions: number, date?: string) => Promise<void>;
+  updateMeal: (entryId: string, recipe: Recipe, mealType: MealType, portions: number, date: string) => Promise<void>;
   removeMeal: (id: string) => Promise<void>;
 }
 
@@ -24,9 +26,10 @@ const today = () => {
 };
 
 const defaultGoals: NutritionGoals = { calories: 2000, protein: 130, carbs: 230, fat: 65 };
-const recipeColumns = 'id, owner_user_id, is_public, image_url, name, category, instructions, prep_minutes, servings, calories, protein, carbs, fat';
+const recipeColumns = 'id, owner_user_id, is_public, image_url, name, name_en, category, instructions, instructions_en, prep_minutes, servings, calories, protein, carbs, fat';
 
 export function MealProvider({ children, userId }: { children: ReactNode; userId: string }) {
+  const { t } = useTranslation();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [isRecipesLoading, setIsRecipesLoading] = useState(true);
   const [entries, setEntries] = useState<MealEntry[]>([]);
@@ -91,11 +94,11 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
       if (error) { setProfileError(error.message); setIsRecipesLoading(false); return; }
       const ids = (recipeRows ?? []).map((row) => row.id);
       const ingredientResult = ids.length
-        ? await neonClient.from('recipe_ingredients').select('recipe_id, name, position').in('recipe_id', ids).order('position')
+        ? await neonClient.from('recipe_ingredients').select('recipe_id, name, name_en, position').in('recipe_id', ids).order('position')
         : { data: [], error: null };
       if (!isActive) return;
       if (ingredientResult.error) { setProfileError(ingredientResult.error.message); setIsRecipesLoading(false); return; }
-      const loadedRecipes = (recipeRows ?? []).map((row) => mapRecipe(row, (ingredientResult.data ?? []).filter((item) => item.recipe_id === row.id).map((item) => item.name)));
+      const loadedRecipes = (recipeRows ?? []).map((row) => { const items = (ingredientResult.data ?? []).filter((item) => item.recipe_id === row.id); return mapRecipe(row, items.map((item) => item.name), items.map((item) => item.name_en ?? '')); });
       setRecipes(loadedRecipes);
       const entryResult = await neonClient.from('meal_entries').select('id, recipe_id, meal_date, meal_type, portions').order('created_at', { ascending: true });
       if (!isActive) return;
@@ -155,8 +158,8 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
   const saveRecipe = async (input: RecipeInput, recipeId?: string) => {
     if (!neonClient) throw new Error('O cliente Neon não está configurado.');
     const values = {
-      owner_user_id: userId, name: input.name,
-      category: input.category, instructions: input.instructions, prep_minutes: input.prepMinutes,
+      owner_user_id: userId, name: input.name, name_en: input.nameEn || null,
+      category: input.category, instructions: input.instructions, instructions_en: input.instructionsEn || null, prep_minutes: input.prepMinutes,
       servings: input.servings, calories: input.calories, protein: input.protein,
       carbs: input.carbs, fat: input.fat, image_url: input.imageUrl,
       is_public: input.isPublic, updated_at: new Date().toISOString(),
@@ -170,12 +173,12 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
       const removed = await neonClient.from('recipe_ingredients').delete().eq('recipe_id', id);
       if (removed.error) throw new Error(removed.error.message);
     }
-    const ingredients = input.ingredients.filter((item) => item.trim()).map((name, position) => ({ recipe_id: id, name: name.trim(), position }));
+    const ingredients = input.ingredients.map((name, index) => ({ name, nameEn: input.ingredientsEn[index] ?? '' })).filter((item) => item.name.trim()).map((item, position) => ({ recipe_id: id, name: item.name.trim(), name_en: item.nameEn.trim() || null, position }));
     if (ingredients.length) {
       const inserted = await neonClient.from('recipe_ingredients').insert(ingredients);
       if (inserted.error) throw new Error(inserted.error.message);
     }
-    const saved = mapRecipe(result.data, ingredients.map((item) => item.name));
+    const saved = mapRecipe(result.data, ingredients.map((item) => item.name), ingredients.map((item) => item.name_en ?? ''));
     setRecipes((current) => recipeId ? current.map((item) => item.id === id ? saved : item) : [saved, ...current]);
   };
 
@@ -195,6 +198,16 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
     setEntries((current) => [...current, mapMealEntry(data, recipe)]);
   };
 
+  const updateMeal = async (entryId: string, recipe: Recipe, mealType: MealType, portions: number, date: string) => {
+    if (!neonClient) throw new Error('O cliente Neon não está configurado.');
+    const { data, error } = await neonClient.from('meal_entries').update({
+      meal_date: date, meal_type: mealType, portions,
+    }).eq('id', entryId).select('id, recipe_id, meal_date, meal_type, portions').single();
+    if (error || !data) throw new Error(error?.message || 'A base de dados não confirmou as alterações.');
+    const updated = mapMealEntry(data, recipe);
+    setEntries((current) => current.map((entry) => entry.id === entryId ? updated : entry));
+  };
+
   const removeMeal = async (id: string) => {
     if (!neonClient) throw new Error('O cliente Neon não está configurado.');
     const { error } = await neonClient.from('meal_entries').delete().eq('id', id);
@@ -203,36 +216,36 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
   };
 
   if (isProfileLoading) {
-    return <div className="grid min-h-screen place-items-center bg-cream"><div className="text-center"><Loader2 className="mx-auto animate-spin text-leaf-500" size={38} /><p className="mt-4 text-sm font-semibold text-stone-400">A preparar o teu perfil...</p></div></div>;
+    return <div className="grid min-h-screen place-items-center bg-cream"><div className="text-center"><Loader2 className="mx-auto animate-spin text-leaf-500" size={38} /><p className="mt-4 text-sm font-semibold text-stone-400">{t('A preparar o teu perfil...')}</p></div></div>;
   }
 
   if (profileError) {
-    return <div className="grid min-h-screen place-items-center bg-cream p-5"><div className="card max-w-lg p-8 text-center"><h1 className="text-2xl font-extrabold">Não foi possível carregar o perfil</h1><p className="mt-3 text-sm text-stone-400">{profileError}</p><button className="mt-6 rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white" onClick={() => window.location.reload()}>Tentar novamente</button></div></div>;
+    return <div className="grid min-h-screen place-items-center bg-cream p-5"><div className="card max-w-lg p-8 text-center"><h1 className="text-2xl font-extrabold">{t('Não foi possível carregar o perfil')}</h1><p className="mt-3 text-sm text-stone-400">{profileError}</p><button className="mt-6 rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white" onClick={() => window.location.reload()}>{t('Tentar novamente')}</button></div></div>;
   }
 
   if (!profile?.onboardingCompleted) return <OnboardingPage onComplete={updateProfile} />;
 
   return (
-    <MealContext.Provider value={{ recipes, isRecipesLoading, entries, goals, profile, updateProfile, saveRecipe, deleteRecipe, addMeal, removeMeal }}>
+    <MealContext.Provider value={{ recipes, isRecipesLoading, entries, goals, profile, updateProfile, saveRecipe, deleteRecipe, addMeal, updateMeal, removeMeal }}>
       {children}
     </MealContext.Provider>
   );
 }
 
 interface RecipeRow {
-  id: string; name: string; category: string; prep_minutes: number | string;
+  id: string; name: string; name_en: string | null; category: string; prep_minutes: number | string;
   servings: number | string; calories: number | string; protein: number | string;
-  carbs: number | string; fat: number | string; instructions: string;
+  carbs: number | string; fat: number | string; instructions: string; instructions_en: string | null;
   owner_user_id: string; is_public: boolean; image_url: string | null;
 }
 
-function mapRecipe(row: RecipeRow, ingredients: string[]): Recipe {
+function mapRecipe(row: RecipeRow, ingredients: string[], ingredientsEn: string[]): Recipe {
   return {
-    id: row.id, name: row.name, category: row.category,
+    id: row.id, name: row.name, nameEn: row.name_en ?? '', category: row.category,
     prepMinutes: Number(row.prep_minutes), servings: Number(row.servings),
     imageUrl: row.image_url,
     calories: Number(row.calories), protein: Number(row.protein), carbs: Number(row.carbs), fat: Number(row.fat),
-    instructions: row.instructions, ownerId: row.owner_user_id, isPublic: Boolean(row.is_public), ingredients,
+    instructions: row.instructions, instructionsEn: row.instructions_en ?? '', ownerId: row.owner_user_id, isPublic: Boolean(row.is_public), ingredients, ingredientsEn,
     imageColor: 'from-purple-500/40 to-fuchsia-500/30',
   };
 }
@@ -245,7 +258,7 @@ function mapMealEntry(row: MealEntryRow, recipe: Recipe): MealEntry {
   const portions = Number(row.portions);
   const scale = (value: number) => Math.round(value * portions * 10) / 10;
   return {
-    id: row.id, recipeId: row.recipe_id, recipeName: recipe.name, date: row.meal_date,
+    id: row.id, recipeId: row.recipe_id, recipeName: recipe.name, recipeNameEn: recipe.nameEn, date: row.meal_date,
     mealType: row.meal_type, portions, calories: scale(recipe.calories),
     protein: scale(recipe.protein), carbs: scale(recipe.carbs), fat: scale(recipe.fat),
   };

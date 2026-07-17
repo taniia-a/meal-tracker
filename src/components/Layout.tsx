@@ -1,17 +1,18 @@
 import { CalendarDays, ChefHat, LayoutDashboard, LogOut, Menu, Settings, X } from 'lucide-react';
 import { ReactNode, useState } from 'react';
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { authClient } from '../lib/auth';
+import { changeLanguage } from '../i18n';
 
 const navigation = [
-  { to: '/', label: 'Resumo', icon: LayoutDashboard },
-  { to: '/receitas', label: 'Receitas', icon: ChefHat },
-  { to: '/diario', label: 'Diário', icon: CalendarDays },
-  { to: '/definicoes', label: 'Definições', icon: Settings },
+  { to: '/', label: 'Resumo', icon: LayoutDashboard }, { to: '/receitas', label: 'Receitas', icon: ChefHat },
+  { to: '/diario', label: 'Diário', icon: CalendarDays }, { to: '/definicoes', label: 'Definições', icon: Settings },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const { t, i18n } = useTranslation();
   const session = authClient!.useSession();
   return (
     <div className="min-h-screen bg-cream">
@@ -31,15 +32,16 @@ export default function Layout({ children }: { children: ReactNode }) {
             <NavLink key={to} to={to} onClick={() => setOpen(false)} className={({ isActive }) =>
               `flex items-center gap-3 rounded-2xl px-4 py-3 font-semibold transition ${isActive ? 'bg-leaf-600 text-white shadow-lg shadow-leaf-600/20' : 'text-stone-400 hover:bg-leaf-50 hover:text-leaf-700'}`
             }>
-              <Icon size={20} />{label}
+              <Icon size={20} />{t(label)}
             </NavLink>
           ))}
         </nav>
         <div className="absolute inset-x-6 bottom-6 rounded-3xl bg-ink p-4 text-white">
+          <div className="mb-4 flex items-center justify-between"><span className="text-xs font-bold uppercase text-stone-400">{t('Idioma')}</span><div className="flex rounded-xl bg-white/5 p-1"><button onClick={() => changeLanguage('pt')} className={`rounded-lg px-2.5 py-1 text-xs font-bold ${i18n.language === 'pt' ? 'bg-leaf-600 text-white' : 'text-stone-400'}`}>PT</button><button onClick={() => changeLanguage('en')} className={`rounded-lg px-2.5 py-1 text-xs font-bold ${i18n.language === 'en' ? 'bg-leaf-600 text-white' : 'text-stone-400'}`}>EN</button></div></div>
           <p className="truncate font-bold">{session.data?.user.name || 'Utilizador'}</p>
           <p className="truncate text-xs text-stone-400">{session.data?.user.email}</p>
           <button onClick={() => authClient!.signOut()} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-sm font-bold text-stone-300 transition hover:bg-white/10 hover:text-white">
-            <LogOut size={16} /> Terminar sessão
+            <LogOut size={16} /> {t('Terminar sessão')}
           </button>
         </div>
       </aside>
@@ -51,10 +53,11 @@ export default function Layout({ children }: { children: ReactNode }) {
 }
 
 function Brand() {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-3">
       <div className="grid h-11 w-11 place-items-center rounded-2xl bg-leaf-600 text-white"><ChefHat size={24} /></div>
-      <div><p className="font-display text-lg font-extrabold leading-tight">Meal Tracker</p><p className="text-xs text-stone-400">Nutrição sem complicações</p></div>
+      <div><p className="font-display text-lg font-extrabold leading-tight">Meal Tracker</p><p className="text-xs text-stone-400">{t('Nutrição sem complicações')}</p></div>
     </div>
   );
 }

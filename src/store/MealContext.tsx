@@ -22,7 +22,7 @@ interface MealContextValue {
 const MealContext = createContext<MealContextValue | null>(null);
 const defaultGoals: NutritionGoals = { calories: 2000, protein: 130, carbs: 230, fat: 65 };
 const localToday = () => { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; };
-const recipeColumns = 'id, owner_user_id, is_public, image_url, name, name_en, category, instructions, instructions_en, prep_minutes, servings, calories, protein, carbs, fat';
+const recipeColumns = 'id, owner_user_id, is_public, image_url, name, name_en, category, instructions, instructions_en, notes, notes_en, prep_minutes, servings, calories, protein, carbs, fat';
 
 export function MealProvider({ children, userId }: { children: ReactNode; userId: string }) {
   const { t } = useTranslation();
@@ -90,11 +90,11 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
       if (error) { setProfileError(error.message); setIsRecipesLoading(false); return; }
       const ids = (recipeRows ?? []).map((row) => row.id);
       const ingredientResult = ids.length
-        ? await neonClient.from('recipe_ingredients').select('recipe_id, name, name_en, position').in('recipe_id', ids).order('position')
+        ? await neonClient.from('recipe_ingredients').select('recipe_id, name, name_en, quantity, unit, is_optional, position').in('recipe_id', ids).order('position')
         : { data: [], error: null };
       if (!isActive) return;
       if (ingredientResult.error) { setProfileError(ingredientResult.error.message); setIsRecipesLoading(false); return; }
-      const loadedRecipes = (recipeRows ?? []).map((row) => { const items = (ingredientResult.data ?? []).filter((item) => item.recipe_id === row.id); return mapRecipe(row, items.map((item) => item.name), items.map((item) => item.name_en ?? '')); });
+      const loadedRecipes = (recipeRows ?? []).map((row) => mapRecipe(row, (ingredientResult.data ?? []).filter((item) => item.recipe_id === row.id)));
       setRecipes(loadedRecipes);
       const entryResult = await neonClient.from('meal_entries').select('id, recipe_id, meal_date, meal_type, portions, is_consumed').order('created_at', { ascending: true });
       if (!isActive) return;
@@ -155,7 +155,7 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
     if (!neonClient) throw new Error('O cliente Neon não está configurado.');
     const values = {
       owner_user_id: userId, name: input.name, name_en: input.nameEn || null,
-      category: input.category, instructions: input.instructions, instructions_en: input.instructionsEn || null, prep_minutes: input.prepMinutes,
+      category: input.category, instructions: input.instructions, instructions_en: input.instructionsEn || null, notes: input.notes || null, notes_en: input.notesEn || null, prep_minutes: input.prepMinutes,
       servings: input.servings, calories: input.calories, protein: input.protein,
       carbs: input.carbs, fat: input.fat, image_url: input.imageUrl,
       is_public: input.isPublic, updated_at: new Date().toISOString(),
@@ -169,12 +169,12 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
       const removed = await neonClient.from('recipe_ingredients').delete().eq('recipe_id', id);
       if (removed.error) throw new Error(removed.error.message);
     }
-    const ingredients = input.ingredients.map((name, index) => ({ name, nameEn: input.ingredientsEn[index] ?? '' })).filter((item) => item.name.trim()).map((item, position) => ({ recipe_id: id, name: item.name.trim(), name_en: item.nameEn.trim() || null, position }));
+    const ingredients = input.ingredients.map((name, index) => ({ name, nameEn: input.ingredientsEn[index] ?? '', quantity: input.ingredientQuantities[index] ?? null, unit: input.ingredientUnits[index] ?? '', isOptional: input.ingredientOptional[index] ?? false })).filter((item) => item.name.trim()).map((item, position) => ({ recipe_id: id, name: item.name.trim(), name_en: item.nameEn.trim() || null, quantity: item.quantity, unit: item.unit.trim() || null, is_optional: item.isOptional, position }));
     if (ingredients.length) {
       const inserted = await neonClient.from('recipe_ingredients').insert(ingredients);
       if (inserted.error) throw new Error(inserted.error.message);
     }
-    const saved = mapRecipe(result.data, ingredients.map((item) => item.name), ingredients.map((item) => item.name_en ?? ''));
+    const saved = mapRecipe(result.data, ingredients);
     setRecipes((current) => recipeId ? current.map((item) => item.id === id ? saved : item) : [saved, ...current]);
   };
 
@@ -231,17 +231,21 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
 interface RecipeRow {
   id: string; name: string; name_en: string | null; category: string; prep_minutes: number | string;
   servings: number | string; calories: number | string; protein: number | string;
-  carbs: number | string; fat: number | string; instructions: string; instructions_en: string | null;
+  carbs: number | string; fat: number | string; instructions: string; instructions_en: string | null; notes: string | null; notes_en: string | null;
   owner_user_id: string; is_public: boolean; image_url: string | null;
 }
 
-function mapRecipe(row: RecipeRow, ingredients: string[], ingredientsEn: string[]): Recipe {
+interface IngredientRow { name: string; name_en: string | null; quantity: number | string | null; unit: string | null; is_optional: boolean | null; }
+
+function mapRecipe(row: RecipeRow, ingredients: IngredientRow[]): Recipe {
   return {
     id: row.id, name: row.name, nameEn: row.name_en ?? '', category: row.category,
     prepMinutes: Number(row.prep_minutes), servings: Number(row.servings),
     imageUrl: row.image_url,
     calories: Number(row.calories), protein: Number(row.protein), carbs: Number(row.carbs), fat: Number(row.fat),
-    instructions: row.instructions, instructionsEn: row.instructions_en ?? '', ownerId: row.owner_user_id, isPublic: Boolean(row.is_public), ingredients, ingredientsEn,
+    instructions: row.instructions, instructionsEn: row.instructions_en ?? '', notes: row.notes ?? '', notesEn: row.notes_en ?? '', ownerId: row.owner_user_id, isPublic: Boolean(row.is_public),
+    ingredients: ingredients.map((item) => item.name), ingredientsEn: ingredients.map((item) => item.name_en ?? ''),
+    ingredientQuantities: ingredients.map((item) => item.quantity === null ? null : Number(item.quantity)), ingredientUnits: ingredients.map((item) => item.unit ?? 'g'), ingredientOptional: ingredients.map((item) => Boolean(item.is_optional)),
     imageColor: 'from-purple-500/40 to-fuchsia-500/30',
   };
 }

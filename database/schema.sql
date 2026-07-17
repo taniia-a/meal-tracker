@@ -45,6 +45,8 @@ CREATE TABLE IF NOT EXISTS recipes (
   category TEXT NOT NULL,
   instructions TEXT NOT NULL DEFAULT '',
   instructions_en TEXT,
+  notes TEXT,
+  notes_en TEXT,
   prep_minutes INTEGER NOT NULL DEFAULT 0 CHECK (prep_minutes >= 0),
   servings NUMERIC(7,2) NOT NULL DEFAULT 1 CHECK (servings > 0),
   calories NUMERIC(9,2) NOT NULL CHECK (calories >= 0),
@@ -60,8 +62,11 @@ ALTER TABLE recipes ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT 
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS image_url TEXT;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS name_en TEXT;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS instructions_en TEXT;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS notes_en TEXT;
 ALTER TABLE recipes ALTER COLUMN owner_user_id SET DEFAULT (auth.user_id());
 ALTER TABLE recipes DROP COLUMN IF EXISTS description;
+UPDATE recipes SET category = 'Almoço/Jantar' WHERE category IN ('Almoço', 'Jantar');
 
 CREATE TABLE IF NOT EXISTS recipe_ingredients (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -70,9 +75,14 @@ CREATE TABLE IF NOT EXISTS recipe_ingredients (
   name_en TEXT,
   quantity NUMERIC(9,2),
   unit TEXT,
+  is_optional BOOLEAN NOT NULL DEFAULT FALSE,
   position INTEGER NOT NULL DEFAULT 0
 );
 ALTER TABLE recipe_ingredients ADD COLUMN IF NOT EXISTS name_en TEXT;
+ALTER TABLE recipe_ingredients ADD COLUMN IF NOT EXISTS quantity NUMERIC(9,2);
+ALTER TABLE recipe_ingredients ADD COLUMN IF NOT EXISTS unit TEXT;
+ALTER TABLE recipe_ingredients ADD COLUMN IF NOT EXISTS is_optional BOOLEAN NOT NULL DEFAULT FALSE;
+UPDATE recipe_ingredients SET unit = 'g' WHERE quantity IS NOT NULL AND unit IS NULL;
 
 CREATE TABLE IF NOT EXISTS meal_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

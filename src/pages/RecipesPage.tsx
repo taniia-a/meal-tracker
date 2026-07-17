@@ -7,7 +7,7 @@ import { recipeIngredients, recipeName } from '../lib/recipe-language';
 import { useMeals } from '../store/MealContext';
 import { Recipe, RecipeInput } from '../types';
 
-const categories = ['Todas', 'Pequeno Almoço', 'Almoço', 'Jantar', 'Snacks'];
+const categories = ['Todas', 'Pequeno Almoço', 'Almoço/Jantar', 'Snacks'];
 type Scope = 'all' | 'mine' | 'public';
 
 export default function RecipesPage() {
@@ -44,9 +44,9 @@ export default function RecipesPage() {
       nameEn: source.nameEn ? `${source.nameEn}${source.nameEn.endsWith('(copy)') ? '' : ' (copy)'}` : '',
       category: source.category, prepMinutes: source.prepMinutes, servings: source.servings,
       imageUrl: source.imageUrl, calories: source.calories, protein: source.protein,
-      carbs: source.carbs, fat: source.fat, ingredients: [...source.ingredients],
-      ingredientsEn: [...source.ingredientsEn], instructions: source.instructions,
-      instructionsEn: source.instructionsEn, isPublic: false,
+      carbs: source.carbs, fat: source.fat, ingredients: [...source.ingredients], ingredientsEn: [...source.ingredientsEn],
+      ingredientQuantities: [...source.ingredientQuantities], ingredientUnits: [...source.ingredientUnits], ingredientOptional: [...source.ingredientOptional], instructions: source.instructions,
+      instructionsEn: source.instructionsEn, notes: source.notes, notesEn: source.notesEn, isPublic: false,
     };
     try { await saveRecipe(input); setSuccess(t('Receita duplicada com sucesso. A cópia é privada.')); }
     catch (reason) { setError(reason instanceof Error ? reason.message : t('Não foi possível duplicar a receita.')); }

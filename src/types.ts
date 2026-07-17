@@ -18,8 +18,13 @@ export interface Recipe extends Macros {
   imageColor: string;
   ingredients: string[];
   ingredientsEn: string[];
+  ingredientQuantities: Array<number | null>;
+  ingredientUnits: string[];
+  ingredientOptional: boolean[];
   instructions: string;
   instructionsEn: string;
+  notes: string;
+  notesEn: string;
   ownerId: string;
   isPublic: boolean;
 }
@@ -33,8 +38,13 @@ export interface RecipeInput extends Macros {
   imageUrl: string | null;
   ingredients: string[];
   ingredientsEn: string[];
+  ingredientQuantities: Array<number | null>;
+  ingredientUnits: string[];
+  ingredientOptional: boolean[];
   instructions: string;
   instructionsEn: string;
+  notes: string;
+  notesEn: string;
   isPublic: boolean;
 }
 

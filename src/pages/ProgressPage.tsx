@@ -221,7 +221,7 @@ export default function ProgressPage() {
           <label className="mt-4 block text-sm font-semibold">
             {t("Peso (kg)")}
             <NumberInput
-              className="input mt-2"
+              className="input mt-2 !w-44"
               min="1"
               step="0.1"
               value={weight}

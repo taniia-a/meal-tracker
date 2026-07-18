@@ -210,7 +210,7 @@ export default function ProgressPage() {
           <label className="mt-5 block text-sm font-semibold">
             {t("Data")}
             <input
-              className="input mt-2 !w-full !min-w-0 !max-w-full"
+              className="input mt-2 !w-44 !min-w-0"
               type="date"
               max={today()}
               value={date}

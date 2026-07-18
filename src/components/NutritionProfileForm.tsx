@@ -1,15 +1,16 @@
 import { CheckCircle2, X, XCircle } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import { calculateMacrosForCalories, calculateNutrition } from '../lib/nutrition';
-import { NutritionGoals, NutritionProfileInput } from '../types';
+import { GoalMode, NutritionGoals, NutritionProfileInput } from '../types';
 import { useTranslation } from 'react-i18next';
 import NumberInput from './NumberInput';
 
 interface Props {
   initialProfile?: NutritionProfileInput;
   initialGoals?: NutritionGoals;
+  initialGoalMode?: GoalMode;
   submitLabel: string;
-  onSave: (profile: NutritionProfileInput, goals: NutritionGoals) => Promise<void>;
+  onSave: (profile: NutritionProfileInput, goals: NutritionGoals, goalMode: GoalMode) => Promise<void>;
 }
 
 const currentYear = new Date().getFullYear();
@@ -22,12 +23,12 @@ const defaults: NutritionProfileInput = {
   nutritionGoal: 'maintain',
 };
 
-export default function NutritionProfileForm({ initialProfile, initialGoals, submitLabel, onSave }: Props) {
+export default function NutritionProfileForm({ initialProfile, initialGoals, initialGoalMode, submitLabel, onSave }: Props) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState(initialProfile ?? defaults);
   const calculated = useMemo(() => calculateNutrition(profile), [profile]);
   const [manualGoals, setManualGoals] = useState(initialGoals ?? calculated);
-  const [manual, setManual] = useState(() => Boolean(initialProfile && initialGoals && !goalsMatch(initialGoals, calculateNutrition(initialProfile))));
+  const [manual, setManual] = useState(() => initialGoalMode ? initialGoalMode === 'manual' : Boolean(initialProfile && initialGoals && !goalsMatch(initialGoals, calculateNutrition(initialProfile))));
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const goals = manual ? manualGoals : calculated;
@@ -41,7 +42,7 @@ export default function NutritionProfileForm({ initialProfile, initialGoals, sub
     setSaving(true);
     setFeedback(null);
     try {
-      await onSave(profile, goals);
+      await onSave(profile, goals, manual ? 'manual' : 'calculated');
       setFeedback({ type: 'success', message: t('Alterações guardadas com sucesso.') });
     }
     catch (reason) {
@@ -55,7 +56,7 @@ export default function NutritionProfileForm({ initialProfile, initialGoals, sub
       <Field label="Ano de nascimento"><NumberInput className="input mt-2" min={currentYear - 100} max={currentYear - 18} required value={profile.birthYear} onValueChange={(value) => setProfile({ ...profile, birthYear: value })} /></Field>
       <Field label="Fórmula metabólica"><select className="input mt-2" value={profile.metabolicSex} onChange={(e) => setProfile({ ...profile, metabolicSex: e.target.value as NutritionProfileInput['metabolicSex'] })}><option value="female">{t('Feminina')}</option><option value="male">{t('Masculina')}</option></select></Field>
       <Field label="Altura (cm)"><NumberInput className="input mt-2" min="120" max="230" required value={profile.heightCm} onValueChange={(value) => setProfile({ ...profile, heightCm: value })} /></Field>
-      <Field label="Peso atual (kg)"><NumberInput className="input mt-2" min="35" max="300" step="0.1" required value={profile.weightKg} onValueChange={(value) => setProfile({ ...profile, weightKg: value })} /></Field>
+      <Field label="Peso inicial (kg)"><NumberInput className="input mt-2" min="35" max="300" step="0.1" required value={profile.weightKg} onValueChange={(value) => setProfile({ ...profile, weightKg: value })} /></Field>
       <Field label="Nível de atividade"><select className="input mt-2" value={profile.activityLevel} onChange={(e) => setProfile({ ...profile, activityLevel: e.target.value as NutritionProfileInput['activityLevel'] })}><option value="sedentary">{t('Sedentário')}</option><option value="light">{t('Ligeiramente ativo (1–3 dias/semana)')}</option><option value="moderate">{t('Moderadamente ativo (3–5 dias/semana)')}</option><option value="very-active">{t('Muito ativo (6–7 dias/semana)')}</option><option value="extra-active">{t('Extremamente ativo')}</option></select></Field>
       <Field label="Objetivo"><select className="input mt-2" value={profile.nutritionGoal} onChange={(e) => setProfile({ ...profile, nutritionGoal: e.target.value as NutritionProfileInput['nutritionGoal'] })}><option value="lose">{t('Perder peso gradualmente')}</option><option value="maintain">{t('Manter o peso')}</option><option value="gain">{t('Ganhar peso gradualmente')}</option></select></Field>
     </div>

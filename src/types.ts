@@ -64,6 +64,7 @@ export type NutritionGoals = Macros;
 export type MetabolicSex = 'female' | 'male';
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'very-active' | 'extra-active';
 export type NutritionGoal = 'lose' | 'maintain' | 'gain';
+export type GoalMode = 'calculated' | 'manual';
 
 export interface NutritionProfileInput {
   birthYear: number;
@@ -77,5 +78,6 @@ export interface NutritionProfileInput {
 export interface NutritionProfile extends NutritionProfileInput {
   userId: string;
   onboardingCompleted: boolean;
+  goalMode: GoalMode;
   goals: NutritionGoals;
 }

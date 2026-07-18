@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   weight_kg NUMERIC(6,2),
   activity_level TEXT CHECK (activity_level IN ('sedentary', 'light', 'moderate', 'very-active', 'extra-active')),
   nutrition_goal TEXT CHECK (nutrition_goal IN ('lose', 'maintain', 'gain')),
+  goal_mode TEXT NOT NULL DEFAULT 'calculated' CHECK (goal_mode IN ('calculated', 'manual')),
   onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -32,6 +33,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS weight_kg NUMERIC(6,2);
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS activity_level TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS nutrition_goal TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS goal_mode TEXT NOT NULL DEFAULT 'calculated';
 
 -- Receitas são globais: qualquer utilizador autenticado pode consultá-las.
 -- A criação/edição será feita posteriormente por uma API de administração.
@@ -103,10 +105,46 @@ CREATE TABLE IF NOT EXISTS recipe_favorites (
   PRIMARY KEY (user_id, recipe_id)
 );
 
+CREATE TABLE IF NOT EXISTS weight_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL DEFAULT (auth.user_id()),
+  measured_on DATE NOT NULL DEFAULT CURRENT_DATE,
+  weight_kg NUMERIC(6,2) NOT NULL CHECK (weight_kg > 0),
+  waist_cm NUMERIC(6,2),
+  hip_cm NUMERIC(6,2),
+  chest_cm NUMERIC(6,2),
+  abdomen_cm NUMERIC(6,2),
+  arm_cm NUMERIC(6,2),
+  thigh_cm NUMERIC(6,2),
+  calf_cm NUMERIC(6,2),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, measured_on)
+);
+ALTER TABLE weight_entries ADD COLUMN IF NOT EXISTS waist_cm NUMERIC(6,2);
+ALTER TABLE weight_entries ADD COLUMN IF NOT EXISTS hip_cm NUMERIC(6,2);
+ALTER TABLE weight_entries ADD COLUMN IF NOT EXISTS chest_cm NUMERIC(6,2);
+ALTER TABLE weight_entries ADD COLUMN IF NOT EXISTS abdomen_cm NUMERIC(6,2);
+ALTER TABLE weight_entries ADD COLUMN IF NOT EXISTS arm_cm NUMERIC(6,2);
+ALTER TABLE weight_entries ADD COLUMN IF NOT EXISTS thigh_cm NUMERIC(6,2);
+ALTER TABLE weight_entries ADD COLUMN IF NOT EXISTS calf_cm NUMERIC(6,2);
+
 CREATE INDEX IF NOT EXISTS recipes_name_idx ON recipes (LOWER(name));
 CREATE INDEX IF NOT EXISTS recipe_ingredients_recipe_idx ON recipe_ingredients (recipe_id, position);
 CREATE INDEX IF NOT EXISTS meal_entries_user_date_idx ON meal_entries (user_id, meal_date);
 CREATE INDEX IF NOT EXISTS recipe_favorites_user_idx ON recipe_favorites (user_id);
+CREATE INDEX IF NOT EXISTS weight_entries_user_date_idx ON weight_entries (user_id, measured_on);
+
+-- Cria retroativamente o primeiro registo de peso para perfis já existentes.
+INSERT INTO weight_entries (user_id, measured_on, weight_kg)
+SELECT user_id, created_at::DATE, weight_kg
+FROM profiles
+WHERE weight_kg IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM weight_entries
+    WHERE weight_entries.user_id = profiles.user_id
+      AND weight_entries.weight_kg = profiles.weight_kg
+  )
+ON CONFLICT (user_id, measured_on) DO NOTHING;
 
 -- Row-Level Security: cada utilizador só vê e altera o seu perfil e diário.
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -114,6 +152,7 @@ ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recipe_ingredients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE meal_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recipe_favorites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE weight_entries ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS profiles_own_rows ON profiles;
 DROP POLICY IF EXISTS recipes_authenticated_read ON recipes;
@@ -126,6 +165,7 @@ DROP POLICY IF EXISTS recipe_ingredients_owner_update ON recipe_ingredients;
 DROP POLICY IF EXISTS recipe_ingredients_owner_delete ON recipe_ingredients;
 DROP POLICY IF EXISTS meal_entries_own_rows ON meal_entries;
 DROP POLICY IF EXISTS recipe_favorites_own_rows ON recipe_favorites;
+DROP POLICY IF EXISTS weight_entries_own_rows ON weight_entries;
 
 CREATE POLICY profiles_own_rows ON profiles
   FOR ALL TO authenticated
@@ -176,10 +216,16 @@ CREATE POLICY recipe_favorites_own_rows ON recipe_favorites
   USING ((SELECT auth.user_id()) = user_id)
   WITH CHECK ((SELECT auth.user_id()) = user_id);
 
+CREATE POLICY weight_entries_own_rows ON weight_entries
+  FOR ALL TO authenticated
+  USING ((SELECT auth.user_id()) = user_id)
+  WITH CHECK ((SELECT auth.user_id()) = user_id);
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON profiles TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON recipes, recipe_ingredients TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON meal_entries TO authenticated;
 GRANT SELECT, INSERT, DELETE ON recipe_favorites TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON weight_entries TO authenticated;
 
 -- Keep the Data API schema cache in sync after migrations.
 NOTIFY pgrst, 'reload schema';

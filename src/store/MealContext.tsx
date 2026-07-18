@@ -2,7 +2,8 @@ import { Loader2 } from 'lucide-react';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { neonClient } from '../lib/auth';
 import OnboardingPage from '../pages/OnboardingPage';
-import { MealEntry, MealType, NutritionGoals, NutritionProfile, NutritionProfileInput, Recipe, RecipeInput } from '../types';
+import { GoalMode, MealEntry, MealType, NutritionGoals, NutritionProfile, NutritionProfileInput, Recipe, RecipeInput } from '../types';
+import { calculateNutrition } from '../lib/nutrition';
 import { useTranslation } from 'react-i18next';
 
 interface MealContextValue {
@@ -12,7 +13,8 @@ interface MealContextValue {
   entries: MealEntry[];
   goals: NutritionGoals;
   profile: NutritionProfile;
-  updateProfile: (profile: NutritionProfileInput, goals: NutritionGoals) => Promise<void>;
+  updateProfile: (profile: NutritionProfileInput, goals: NutritionGoals, goalMode: GoalMode) => Promise<void>;
+  syncProgressWeight: (weightKg: number) => Promise<void>;
   saveRecipe: (recipe: RecipeInput, recipeId?: string) => Promise<void>;
   deleteRecipe: (recipeId: string) => Promise<void>;
   toggleFavorite: (recipeId: string) => Promise<void>;
@@ -49,7 +51,7 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
       const { data, error } = await neonClient
         .from('profiles')
         .upsert({ user_id: userId }, { onConflict: 'user_id' })
-        .select('user_id, calorie_goal, protein_goal, carbs_goal, fat_goal, birth_year, metabolic_sex, height_cm, weight_kg, activity_level, nutrition_goal, onboarding_completed')
+        .select('user_id, calorie_goal, protein_goal, carbs_goal, fat_goal, birth_year, metabolic_sex, height_cm, weight_kg, activity_level, nutrition_goal, goal_mode, onboarding_completed')
         .single();
 
       if (!isActive) return;
@@ -72,6 +74,7 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
           weightKg: Number(data.weight_kg || 65),
           activityLevel: data.activity_level || 'moderate',
           nutritionGoal: data.nutrition_goal || 'maintain',
+          goalMode: data.goal_mode === 'manual' ? 'manual' : 'calculated',
           onboardingCompleted: Boolean(data.onboarding_completed),
           goals: loadedGoals,
         });
@@ -116,7 +119,7 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
     return () => { isActive = false; };
   }, [userId]);
 
-  const updateProfile = async (input: NutritionProfileInput, nextGoals: NutritionGoals) => {
+  const updateProfile = async (input: NutritionProfileInput, nextGoals: NutritionGoals, goalMode: GoalMode) => {
     if (!neonClient) throw new Error('O cliente Neon não está configurado.');
     const { data, error } = await neonClient.from('profiles').update({
       birth_year: input.birthYear,
@@ -125,6 +128,7 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
       weight_kg: input.weightKg,
       activity_level: input.activityLevel,
       nutrition_goal: input.nutritionGoal,
+      goal_mode: goalMode,
       calorie_goal: nextGoals.calories,
       protein_goal: nextGoals.protein,
       carbs_goal: nextGoals.carbs,
@@ -133,10 +137,19 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
       updated_at: new Date().toISOString(),
     })
       .eq('user_id', userId)
-      .select('user_id, calorie_goal, protein_goal, carbs_goal, fat_goal, birth_year, metabolic_sex, height_cm, weight_kg, activity_level, nutrition_goal, onboarding_completed')
+      .select('user_id, calorie_goal, protein_goal, carbs_goal, fat_goal, birth_year, metabolic_sex, height_cm, weight_kg, activity_level, nutrition_goal, goal_mode, onboarding_completed')
       .single();
 
     if (error || !data) throw new Error(error?.message || 'A base de dados não confirmou as alterações.');
+
+    const existingWeight = await neonClient.from('weight_entries').select('id').eq('user_id', userId).limit(1);
+    if (existingWeight.error) throw new Error(existingWeight.error.message);
+    if (!existingWeight.data?.length) {
+      const date = new Date();
+      const measuredOn = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const { error: weightError } = await neonClient.from('weight_entries').insert({ user_id: userId, measured_on: measuredOn, weight_kg: input.weightKg });
+      if (weightError) throw new Error(weightError.message);
+    }
 
     const savedGoals = {
       calories: Number(data.calorie_goal),
@@ -153,9 +166,19 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
       weightKg: Number(data.weight_kg),
       activityLevel: data.activity_level,
       nutritionGoal: data.nutrition_goal,
+      goalMode: data.goal_mode === 'manual' ? 'manual' : 'calculated',
       onboardingCompleted: Boolean(data.onboarding_completed),
       goals: savedGoals,
     });
+  };
+
+  const syncProgressWeight = async (weightKg: number) => {
+    if (!neonClient || !profile || profile.goalMode !== 'calculated') return;
+    const goalsForWeight = calculateNutrition({ ...profile, weightKg });
+    const { error } = await neonClient.from('profiles').update({ calorie_goal: goalsForWeight.calories, protein_goal: goalsForWeight.protein, carbs_goal: goalsForWeight.carbs, fat_goal: goalsForWeight.fat, updated_at: new Date().toISOString() }).eq('user_id', userId);
+    if (error) throw new Error(error.message);
+    setGoals(goalsForWeight);
+    setProfile((current) => current ? { ...current, goals: goalsForWeight } : current);
   };
 
   const saveRecipe = async (input: RecipeInput, recipeId?: string) => {
@@ -244,7 +267,7 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
   if (!profile?.onboardingCompleted) return <OnboardingPage onComplete={updateProfile} />;
 
   return (
-    <MealContext.Provider value={{ recipes, favoriteRecipeIds, isRecipesLoading, entries, goals, profile, updateProfile, saveRecipe, deleteRecipe, toggleFavorite, addMeal, updateMeal, removeMeal }}>
+    <MealContext.Provider value={{ recipes, favoriteRecipeIds, isRecipesLoading, entries, goals, profile, updateProfile, syncProgressWeight, saveRecipe, deleteRecipe, toggleFavorite, addMeal, updateMeal, removeMeal }}>
       {children}
     </MealContext.Provider>
   );

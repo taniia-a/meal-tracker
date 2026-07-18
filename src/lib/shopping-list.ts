@@ -1,5 +1,6 @@
 const keyFor = (userId: string) => `meal-tracker-shopping-entry-ids-${userId}`;
 const recipeKeyFor = (userId: string) => `meal-tracker-shopping-recipes-${userId}`;
+const portionsKeyFor = (userId: string) => `meal-tracker-shopping-recipe-portions-${userId}`;
 
 export interface ShoppingRecipe {
   recipeId: string;
@@ -35,4 +36,15 @@ export function addShoppingRecipe(userId: string, recipeId: string, portions: nu
   if (existing) existing.portions += portions;
   else recipes.push({ recipeId, portions });
   saveShoppingRecipes(userId, recipes);
+}
+
+export function getShoppingRecipePortions(userId: string): Record<string, number> {
+  try {
+    const values = JSON.parse(localStorage.getItem(portionsKeyFor(userId)) ?? '{}') as Record<string, number>;
+    return Object.fromEntries(Object.entries(values).filter(([, portions]) => Number.isFinite(portions) && portions > 0));
+  } catch { return {}; }
+}
+
+export function saveShoppingRecipePortions(userId: string, portions: Record<string, number>) {
+  localStorage.setItem(portionsKeyFor(userId), JSON.stringify(portions));
 }

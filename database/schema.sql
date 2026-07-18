@@ -96,15 +96,24 @@ CREATE TABLE IF NOT EXISTS meal_entries (
 );
 ALTER TABLE meal_entries ADD COLUMN IF NOT EXISTS is_consumed BOOLEAN NOT NULL DEFAULT TRUE;
 
+CREATE TABLE IF NOT EXISTS recipe_favorites (
+  user_id TEXT NOT NULL DEFAULT (auth.user_id()),
+  recipe_id UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, recipe_id)
+);
+
 CREATE INDEX IF NOT EXISTS recipes_name_idx ON recipes (LOWER(name));
 CREATE INDEX IF NOT EXISTS recipe_ingredients_recipe_idx ON recipe_ingredients (recipe_id, position);
 CREATE INDEX IF NOT EXISTS meal_entries_user_date_idx ON meal_entries (user_id, meal_date);
+CREATE INDEX IF NOT EXISTS recipe_favorites_user_idx ON recipe_favorites (user_id);
 
 -- Row-Level Security: cada utilizador só vê e altera o seu perfil e diário.
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recipe_ingredients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE meal_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recipe_favorites ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS profiles_own_rows ON profiles;
 DROP POLICY IF EXISTS recipes_authenticated_read ON recipes;
@@ -116,6 +125,7 @@ DROP POLICY IF EXISTS recipe_ingredients_owner_insert ON recipe_ingredients;
 DROP POLICY IF EXISTS recipe_ingredients_owner_update ON recipe_ingredients;
 DROP POLICY IF EXISTS recipe_ingredients_owner_delete ON recipe_ingredients;
 DROP POLICY IF EXISTS meal_entries_own_rows ON meal_entries;
+DROP POLICY IF EXISTS recipe_favorites_own_rows ON recipe_favorites;
 
 CREATE POLICY profiles_own_rows ON profiles
   FOR ALL TO authenticated
@@ -161,9 +171,15 @@ CREATE POLICY meal_entries_own_rows ON meal_entries
   USING ((SELECT auth.user_id()) = user_id)
   WITH CHECK ((SELECT auth.user_id()) = user_id);
 
+CREATE POLICY recipe_favorites_own_rows ON recipe_favorites
+  FOR ALL TO authenticated
+  USING ((SELECT auth.user_id()) = user_id)
+  WITH CHECK ((SELECT auth.user_id()) = user_id);
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON profiles TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON recipes, recipe_ingredients TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON meal_entries TO authenticated;
+GRANT SELECT, INSERT, DELETE ON recipe_favorites TO authenticated;
 
 -- Keep the Data API schema cache in sync after migrations.
 NOTIFY pgrst, 'reload schema';

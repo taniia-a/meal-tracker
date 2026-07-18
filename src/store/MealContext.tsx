@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 interface MealContextValue {
   recipes: Recipe[];
+  favoriteRecipeIds: string[];
   isRecipesLoading: boolean;
   entries: MealEntry[];
   goals: NutritionGoals;
@@ -14,6 +15,7 @@ interface MealContextValue {
   updateProfile: (profile: NutritionProfileInput, goals: NutritionGoals) => Promise<void>;
   saveRecipe: (recipe: RecipeInput, recipeId?: string) => Promise<void>;
   deleteRecipe: (recipeId: string) => Promise<void>;
+  toggleFavorite: (recipeId: string) => Promise<void>;
   addMeal: (recipe: Recipe, mealType: MealType, portions: number, date: string) => Promise<void>;
   updateMeal: (entryId: string, recipe: Recipe, mealType: MealType, portions: number, date: string) => Promise<void>;
   removeMeal: (id: string) => Promise<void>;
@@ -27,6 +29,7 @@ const recipeColumns = 'id, owner_user_id, is_public, image_url, name, name_en, c
 export function MealProvider({ children, userId }: { children: ReactNode; userId: string }) {
   const { t } = useTranslation();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [favoriteRecipeIds, setFavoriteRecipeIds] = useState<string[]>([]);
   const [isRecipesLoading, setIsRecipesLoading] = useState(true);
   const [entries, setEntries] = useState<MealEntry[]>([]);
   const [goals, setGoals] = useState<NutritionGoals>(defaultGoals);
@@ -94,6 +97,10 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
         : { data: [], error: null };
       if (!isActive) return;
       if (ingredientResult.error) { setProfileError(ingredientResult.error.message); setIsRecipesLoading(false); return; }
+      const favoritesResult = await neonClient.from('recipe_favorites').select('recipe_id').eq('user_id', userId);
+      if (!isActive) return;
+      if (favoritesResult.error) { setProfileError(favoritesResult.error.message); setIsRecipesLoading(false); return; }
+      setFavoriteRecipeIds((favoritesResult.data ?? []).map((item) => item.recipe_id));
       const loadedRecipes = (recipeRows ?? []).map((row) => mapRecipe(row, (ingredientResult.data ?? []).filter((item) => item.recipe_id === row.id)));
       setRecipes(loadedRecipes);
       const entryResult = await neonClient.from('meal_entries').select('id, recipe_id, meal_date, meal_type, portions, is_consumed').order('created_at', { ascending: true });
@@ -183,6 +190,21 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
     const { error } = await neonClient.from('recipes').delete().eq('id', recipeId);
     if (error) throw new Error(error.message);
     setRecipes((current) => current.filter((recipe) => recipe.id !== recipeId));
+    setFavoriteRecipeIds((current) => current.filter((id) => id !== recipeId));
+  };
+
+  const toggleFavorite = async (recipeId: string) => {
+    if (!neonClient) throw new Error('O cliente Neon não está configurado.');
+    const isFavorite = favoriteRecipeIds.includes(recipeId);
+    if (isFavorite) {
+      const { error } = await neonClient.from('recipe_favorites').delete().eq('user_id', userId).eq('recipe_id', recipeId);
+      if (error) throw new Error(error.message);
+      setFavoriteRecipeIds((current) => current.filter((id) => id !== recipeId));
+    } else {
+      const { error } = await neonClient.from('recipe_favorites').insert({ user_id: userId, recipe_id: recipeId });
+      if (error) throw new Error(error.message);
+      setFavoriteRecipeIds((current) => [...current, recipeId]);
+    }
   };
 
   const addMeal = async (recipe: Recipe, mealType: MealType, portions: number, date: string) => {
@@ -222,7 +244,7 @@ export function MealProvider({ children, userId }: { children: ReactNode; userId
   if (!profile?.onboardingCompleted) return <OnboardingPage onComplete={updateProfile} />;
 
   return (
-    <MealContext.Provider value={{ recipes, isRecipesLoading, entries, goals, profile, updateProfile, saveRecipe, deleteRecipe, addMeal, updateMeal, removeMeal }}>
+    <MealContext.Provider value={{ recipes, favoriteRecipeIds, isRecipesLoading, entries, goals, profile, updateProfile, saveRecipe, deleteRecipe, toggleFavorite, addMeal, updateMeal, removeMeal }}>
       {children}
     </MealContext.Provider>
   );

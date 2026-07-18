@@ -6,11 +6,12 @@ import { sumMacros } from '../components/NutritionProgress';
 import { useMeals } from '../store/MealContext';
 import { MealEntry, MealType } from '../types';
 import { addShoppingEntryIds } from '../lib/shopping-list';
+import { formatLocalDate, nutritionDay } from '../lib/nutrition-day';
 
 const types: MealType[] = ['Pequeno-almoço', 'Almoço', 'Lanche', 'Jantar'];
-const formatDateValue = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const formatDateValue = formatLocalDate;
 const parseDateValue = (value: string) => { const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day, 12); };
-const today = formatDateValue(new Date());
+const today = nutritionDay();
 
 function weekFrom(dateValue: string) {
   const date = parseDateValue(dateValue);

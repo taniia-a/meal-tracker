@@ -5,6 +5,7 @@ import OnboardingPage from '../pages/OnboardingPage';
 import { GoalMode, MealEntry, MealType, NutritionGoals, NutritionProfile, NutritionProfileInput, Recipe, RecipeInput } from '../types';
 import { calculateNutrition } from '../lib/nutrition';
 import { useTranslation } from 'react-i18next';
+import { nutritionDay } from '../lib/nutrition-day';
 
 interface MealContextValue {
   recipes: Recipe[];
@@ -25,7 +26,7 @@ interface MealContextValue {
 
 const MealContext = createContext<MealContextValue | null>(null);
 const defaultGoals: NutritionGoals = { calories: 2000, protein: 130, carbs: 230, fat: 65 };
-const localToday = () => { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; };
+const localToday = nutritionDay;
 const recipeColumns = 'id, owner_user_id, is_public, image_url, name, name_en, category, instructions, instructions_en, notes, notes_en, prep_minutes, servings, calories, protein, carbs, fat';
 
 export function MealProvider({ children, userId }: { children: ReactNode; userId: string }) {

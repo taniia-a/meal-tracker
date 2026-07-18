@@ -67,3 +67,14 @@ h1, h2, h3, .font-display { font-family: 'Manrope', sans-serif; }
   border-color: var(--color-leaf-500);
   box-shadow: 0 0 0 4px var(--color-leaf-100);
 }
+
+input[type="date"].input {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* iOS can ignore `color` on numeric controls, leaving their value invisible. */
+input[type="number"].input {
+  -webkit-text-fill-color: #f3eef9;
+  opacity: 1;
+}

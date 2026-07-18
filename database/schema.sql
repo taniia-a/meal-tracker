@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS recipes (
   name TEXT NOT NULL,
   name_en TEXT,
   category TEXT NOT NULL,
+  taste TEXT NOT NULL DEFAULT 'Salgada' CHECK (taste IN ('Doce', 'Salgada')),
   instructions TEXT NOT NULL DEFAULT '',
   instructions_en TEXT,
   notes TEXT,
@@ -63,6 +64,7 @@ ALTER TABLE recipes ADD COLUMN IF NOT EXISTS owner_user_id TEXT;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS image_url TEXT;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS name_en TEXT;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS taste TEXT NOT NULL DEFAULT 'Salgada';
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS instructions_en TEXT;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS notes_en TEXT;

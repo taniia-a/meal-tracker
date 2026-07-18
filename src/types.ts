@@ -1,4 +1,5 @@
-export type MealType = 'Pequeno-almoço' | 'Almoço' | 'Lanche' | 'Jantar';
+export type MealType = "Pequeno-almoço" | "Almoço" | "Lanche" | "Jantar";
+export type RecipeTaste = "Doce" | "Salgada";
 
 export interface Macros {
   calories: number;
@@ -12,6 +13,7 @@ export interface Recipe extends Macros {
   name: string;
   nameEn: string;
   category: string;
+  taste: RecipeTaste;
   prepMinutes: number;
   servings: number;
   imageUrl: string | null;
@@ -33,6 +35,7 @@ export interface RecipeInput extends Macros {
   name: string;
   nameEn: string;
   category: string;
+  taste: RecipeTaste;
   prepMinutes: number;
   servings: number;
   imageUrl: string | null;
@@ -61,10 +64,15 @@ export interface MealEntry extends Macros {
 
 export type NutritionGoals = Macros;
 
-export type MetabolicSex = 'female' | 'male';
-export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'very-active' | 'extra-active';
-export type NutritionGoal = 'lose' | 'maintain' | 'gain';
-export type GoalMode = 'calculated' | 'manual';
+export type MetabolicSex = "female" | "male";
+export type ActivityLevel =
+  | "sedentary"
+  | "light"
+  | "moderate"
+  | "very-active"
+  | "extra-active";
+export type NutritionGoal = "lose" | "maintain" | "gain";
+export type GoalMode = "calculated" | "manual";
 
 export interface NutritionProfileInput {
   birthYear: number;

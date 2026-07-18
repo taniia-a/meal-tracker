@@ -20,7 +20,7 @@ import { recipeIngredients, recipeName } from "../lib/recipe-language";
 import { useMeals } from "../store/MealContext";
 import { Recipe, RecipeInput } from "../types";
 
-const categories = ["Todas", "Pequeno Almoço", "Almoço/Jantar", "Snacks"];
+const categories = ["Todas", "Pequeno Almoço", "Almoço/Jantar", "Snacks", "Sobremesas"];
 const tastes = ["Todas", "Doce", "Salgada"] as const;
 type Scope = "all" | "mine" | "public" | "favorites";
 type Sort =

@@ -8,7 +8,7 @@ import { RecipeInput } from "../types";
 import { useTranslation } from "react-i18next";
 import NumberInput from "../components/NumberInput";
 
-const recipeCategories = ["Pequeno Almoço", "Almoço/Jantar", "Snacks"] as const;
+const recipeCategories = ["Pequeno Almoço", "Almoço/Jantar", "Snacks", "Sobremesas"] as const;
 const recipeTastes = ["Doce", "Salgada"] as const;
 const emptyRecipe: RecipeInput = {
   name: "",

@@ -69,8 +69,18 @@ h1, h2, h3, .font-display { font-family: 'Manrope', sans-serif; }
 }
 
 input[type="date"].input {
+  display: block;
+  inline-size: 100%;
   min-width: 0;
+  min-inline-size: 0;
   max-width: 100%;
+  max-inline-size: 100%;
+}
+
+/* Safari gives date fields an intrinsic width unless this inner value can shrink. */
+input[type="date"].input::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
 }
 
 /* iOS can ignore `color` on numeric controls, leaving their value invisible. */

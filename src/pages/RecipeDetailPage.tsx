@@ -3,6 +3,7 @@ import {
   Clock,
   Pencil,
   Plus,
+  Share2,
   ShoppingCart,
   Star,
   Trash2,
@@ -29,6 +30,10 @@ export default function RecipeDetailPage() {
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [shoppingMessage, setShoppingMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [shareMessage, setShareMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
@@ -75,6 +80,19 @@ export default function RecipeDetailPage() {
         type: "error",
         text: t("Não foi possível adicionar a receita à lista de compras."),
       });
+    }
+  };
+  const shareRecipe = async () => {
+    setShareMessage(null);
+    try {
+      const url = window.location.href;
+      const title = recipeName(recipe, i18n.language);
+      if (navigator.share) await navigator.share({ title, text: t('Vê esta receita no Meal Tracker.'), url });
+      else await navigator.clipboard.writeText(url);
+      setShareMessage({ type: 'success', text: t('Link copiado. Quem o receber terá de criar conta ou iniciar sessão para ver a receita.') });
+    } catch (reason) {
+      if (reason instanceof DOMException && reason.name === 'AbortError') return;
+      setShareMessage({ type: 'error', text: t('Não foi possível partilhar a receita.') });
     }
   };
 
@@ -203,6 +221,12 @@ export default function RecipeDetailPage() {
               >
                 <ShoppingCart size={18} /> {t("Adicionar à lista de compras")}
               </button>
+              {recipe.isPublic && <button
+                onClick={() => void shareRecipe()}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-purple-400/35 px-5 py-3.5 font-bold text-purple-200 hover:bg-purple-500/10 sm:w-auto"
+              >
+                <Share2 size={18} /> {t("Partilhar receita")}
+              </button>}
             </div>
             {shoppingMessage && (
               <p
@@ -212,6 +236,7 @@ export default function RecipeDetailPage() {
                 {shoppingMessage.text}
               </p>
             )}
+            {shareMessage && <p role={shareMessage.type === 'error' ? 'alert' : 'status'} className={`mt-3 rounded-2xl p-4 text-sm font-semibold ${shareMessage.type === 'success' ? 'bg-emerald-500/10 text-emerald-300' : 'bg-rose-500/10 text-rose-300'}`}>{shareMessage.text}</p>}
           </div>
           <RecipeReviews
             reviews={recipeReviews.filter((review) => review.recipeId === recipe.id)}

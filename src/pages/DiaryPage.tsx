@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Droplets, Pencil, Plus, Search, ShoppingCart, Trash2, X } from 'lucide-react';
+import { Bot, CalendarDays, ChevronLeft, ChevronRight, Droplets, Pencil, Plus, Search, ShoppingCart, Sparkles, Trash2, X } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AddMealModal from '../components/AddMealModal';
@@ -8,6 +8,7 @@ import { ManualMealInput, MealEntry, MealType, Recipe } from '../types';
 import { addShoppingEntryIds } from '../lib/shopping-list';
 import { formatLocalDate, nutritionDay } from '../lib/nutrition-day';
 import { recipeName } from '../lib/recipe-language';
+import { getAuthToken } from '../lib/auth';
 
 const types: MealType[] = ['Pequeno-almoço', 'Almoço', 'Lanche', 'Jantar'];
 const formatDateValue = formatLocalDate;
@@ -115,6 +116,9 @@ function ManualMealModal({ date, entry, onClose }: { date: string; entry?: MealE
   const [fat, setFat] = useState(entry?.fat ? String(entry.fat) : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [aiDescription, setAiDescription] = useState('');
+  const [aiNote, setAiNote] = useState('');
+  const [estimating, setEstimating] = useState(false);
   const toNumber = (value: string) => value === '' ? 0 : Number(value);
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -130,7 +134,23 @@ function ManualMealModal({ date, entry, onClose }: { date: string; entry?: MealE
     catch (reason) { setError(reason instanceof Error ? reason.message : t('Não foi possível registar a refeição.')); }
     finally { setSaving(false); }
   };
-  return <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-ink/40 p-5 backdrop-blur-sm"><form onSubmit={submit} className="card my-5 w-full max-w-md p-6"><div className="flex items-start justify-between"><div><p className="text-sm font-semibold text-leaf-600">{t('Diário')}</p><h2 className="mt-1 text-xl font-bold">{t('Refeição manual')}</h2></div><button type="button" onClick={onClose} className="rounded-xl p-2 hover:bg-white/5" aria-label={t('Cancelar')}><X /></button></div><label className="mt-5 block text-sm font-semibold">{t('Dia da refeição')}<input className="input mt-2" type="date" value={entryDate} onChange={(event) => setEntryDate(event.target.value)} required /></label><label className="mt-4 block text-sm font-semibold">{t('Nome da refeição')}<input autoFocus className="input mt-2" value={name} onChange={(event) => setName(event.target.value)} required /></label><label className="mt-4 block text-sm font-semibold">{t('Tipo de refeição')}<select className="input mt-2" value={mealType} onChange={(event) => setMealType(event.target.value as MealType)}>{types.map((type) => <option key={type} value={type}>{t(type)}</option>)}</select></label><label className="mt-4 block text-sm font-semibold">{t('Calorias')}<div className="relative mt-2"><input className="input pr-12" type="number" inputMode="decimal" min="1" step="1" required value={calories} onChange={(event) => setCalories(event.target.value)} /><span className="pointer-events-none absolute right-4 top-3.5 text-sm text-stone-400">kcal</span></div></label><div className="mt-4 grid grid-cols-3 gap-3"><MacroInput label="Proteína" value={protein} onChange={setProtein} /><MacroInput label="Hidratos" value={carbs} onChange={setCarbs} /><MacroInput label="Gordura" value={fat} onChange={setFat} /></div><p className="mt-3 text-xs text-stone-400">{t('Os macros são opcionais. Se não os souberes, podes deixar em branco.')}</p>{error && <p role="alert" className="mt-4 text-sm font-semibold text-rose-400">{error}</p>}<button disabled={saving} className="mt-6 w-full rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white disabled:opacity-60">{saving ? t('A guardar...') : t(entry ? 'Guardar alterações' : 'Adicionar ao diário')}</button></form></div>;
+  const estimateWithAi = async () => {
+    if (!aiDescription.trim()) { setError(t('Descreve primeiro o que comeste.')); return; }
+    setEstimating(true); setError(''); setAiNote('');
+    try {
+      const token = await getAuthToken();
+      if (!token) throw new Error(t('A tua sessão expirou. Inicia sessão novamente.'));
+      const response = await fetch('/api/meal-estimate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, description: aiDescription, language: document.documentElement.lang }) });
+      const text = await response.text();
+      let data: { name?: string; calories?: number; protein?: number; carbs?: number; fat?: number; note?: string; error?: string };
+      try { data = JSON.parse(text) as typeof data; }
+      catch { throw new Error(t('A estimativa por IA só está disponível no ambiente Vercel. Faz deploy ou inicia com vercel dev.')); }
+      if (!response.ok || !data.name) throw new Error(data.error || t('Não foi possível obter uma estimativa agora.'));
+      setName(data.name); setCalories(String(data.calories ?? '')); setProtein(data.protein ? String(data.protein) : ''); setCarbs(data.carbs ? String(data.carbs) : ''); setFat(data.fat ? String(data.fat) : ''); setAiNote(data.note ?? '');
+    } catch (reason) { setError(reason instanceof Error ? reason.message : t('Não foi possível obter uma estimativa agora.')); }
+    finally { setEstimating(false); }
+  };
+  return <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-ink/40 p-5 backdrop-blur-sm"><form onSubmit={submit} className="card my-5 w-full max-w-md p-6"><div className="flex items-start justify-between"><div><p className="text-sm font-semibold text-leaf-600">{t('Diário')}</p><h2 className="mt-1 text-xl font-bold">{t('Refeição manual')}</h2></div><button type="button" onClick={onClose} className="rounded-xl p-2 hover:bg-white/5" aria-label={t('Cancelar')}><X /></button></div>{!entry && <section className="mt-5 rounded-2xl border border-purple-400/20 bg-purple-500/10 p-4"><div className="flex items-center gap-2"><Bot className="text-purple-300" size={18} /><p className="font-bold text-purple-100">{t('Estimar com IA')}</p></div><p className="mt-2 text-xs leading-relaxed text-stone-300">{t('Descreve o que comeste e a IA preenche uma estimativa que podes alterar antes de guardar.')}</p><textarea className="input mt-3 min-h-24 resize-y" value={aiDescription} onChange={(event) => setAiDescription(event.target.value)} placeholder={t('Ex.: comi uma sandes de frango grelhado com queijo e um galão.')} maxLength={1500} /><button type="button" disabled={estimating || !aiDescription.trim()} onClick={() => void estimateWithAi()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-purple-500 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60"><Sparkles size={16} /> {estimating ? t('A estimar...') : t('Estimar valores')}</button>{aiNote && <p className="mt-3 text-xs text-stone-300">{aiNote}</p>}</section>}<label className="mt-5 block text-sm font-semibold">{t('Dia da refeição')}<input className="input mt-2" type="date" value={entryDate} onChange={(event) => setEntryDate(event.target.value)} required /></label><label className="mt-4 block text-sm font-semibold">{t('Nome da refeição')}<input autoFocus className="input mt-2" value={name} onChange={(event) => setName(event.target.value)} required /></label><label className="mt-4 block text-sm font-semibold">{t('Tipo de refeição')}<select className="input mt-2" value={mealType} onChange={(event) => setMealType(event.target.value as MealType)}>{types.map((type) => <option key={type} value={type}>{t(type)}</option>)}</select></label><label className="mt-4 block text-sm font-semibold">{t('Calorias')}<div className="relative mt-2"><input className="input pr-12" type="number" inputMode="decimal" min="1" step="1" required value={calories} onChange={(event) => setCalories(event.target.value)} /><span className="pointer-events-none absolute right-4 top-3.5 text-sm text-stone-400">kcal</span></div></label><div className="mt-4 grid grid-cols-3 gap-3"><MacroInput label="Proteína" value={protein} onChange={setProtein} /><MacroInput label="Hidratos" value={carbs} onChange={setCarbs} /><MacroInput label="Gordura" value={fat} onChange={setFat} /></div><p className="mt-3 text-xs text-stone-400">{t('Os macros são opcionais. Se não os souberes, podes deixar em branco.')}</p>{error && <p role="alert" className="mt-4 text-sm font-semibold text-rose-400">{error}</p>}<button disabled={saving} className="mt-6 w-full rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white disabled:opacity-60">{saving ? t('A guardar...') : t(entry ? 'Guardar alterações' : 'Adicionar ao diário')}</button></form></div>;
 }
 
 function MacroInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {

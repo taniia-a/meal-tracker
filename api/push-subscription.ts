@@ -18,6 +18,8 @@ function connectionString(env: Record<string, string | undefined>) {
 
 export async function pushSubscription(request: Request, env: Record<string, string | undefined> = process.env) {
   if (!['POST', 'DELETE'].includes(request.method)) return new Response('Method not allowed', { status: 405 });
+  if (!env.DATABASE_URL) return Response.json({ error: 'Falta configurar DATABASE_URL no servidor.' }, { status: 503 });
+  if (!env.VITE_NEON_DATA_API_URL) return Response.json({ error: 'Falta configurar VITE_NEON_DATA_API_URL no servidor.' }, { status: 503 });
   try {
     const body = await request.json() as { token?: string; subscription?: PushSubscriptionPayload; reminders?: ReminderPayload; endpoint?: string };
     const userId = await authenticatedUser(body.token ?? '', env.VITE_NEON_DATA_API_URL);
@@ -37,7 +39,8 @@ export async function pushSubscription(request: Request, env: Record<string, str
       }
     } finally { await client.end(); }
     return Response.json({ ok: true });
-  } catch {
+  } catch (error) {
+    console.error('push-subscription failed', error);
     return Response.json({ error: 'Não foi possível guardar a subscrição de notificações.' }, { status: 500 });
   }
 }

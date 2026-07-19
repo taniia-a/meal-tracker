@@ -23,12 +23,12 @@ const key = (userId: string) => `meal-tracker-reminders-${userId}`;
 export function getReminderSettings(userId: string): ReminderSettings {
   try {
     const saved = localStorage.getItem(key(userId));
-    return saved ? { ...defaultReminderSettings, ...JSON.parse(saved) } : defaultReminderSettings;
+    return saved ? { ...defaultReminderSettings, ...JSON.parse(saved), mealsTime: '21:00', weightTime: '08:00' } : defaultReminderSettings;
   } catch { return defaultReminderSettings; }
 }
 
 export function saveReminderSettings(userId: string, settings: ReminderSettings) {
-  localStorage.setItem(key(userId), JSON.stringify(settings));
+  localStorage.setItem(key(userId), JSON.stringify({ ...settings, mealsTime: '21:00', weightTime: '08:00' }));
 }
 
 export function wasReminderSent(userId: string, day: string, kind: ReminderKind) {

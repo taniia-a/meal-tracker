@@ -26,12 +26,12 @@ export async function pushReminders(request: Request) {
     const { rows } = await client.query<SubscriptionRow>('SELECT id, user_id, endpoint, p256dh, auth, reminders FROM push_subscriptions');
     for (const subscription of rows) {
       const jobs: Array<{ kind: 'meals' | 'water' | 'weight'; title: string; body: string; slot: string }> = [];
-      if (subscription.reminders.meals && timeMatches(subscription.reminders.mealsTime, now.hour, now.minute)) {
+      if (subscription.reminders.meals && timeMatches('21:00', now.hour, now.minute)) {
         const { rows: mealRows } = await client.query<{ meal_type: string }>('SELECT DISTINCT meal_type FROM meal_entries WHERE user_id = $1 AND meal_date = $2', [subscription.user_id, now.day]);
         if (mealRows.length < 4) jobs.push({ kind: 'meals', title: 'Meal Tracker', body: 'Não te esqueças de registar as tuas refeições de hoje.', slot: `${now.day}-meals` });
       }
       if (subscription.reminders.water && now.hour >= 8 && now.hour < 22 && now.minute < 5) jobs.push({ kind: 'water', title: 'Meal Tracker', body: 'Lembra-te de beber água e registar o que bebeste.', slot: `${now.day}-water-${now.hour}` });
-      if (subscription.reminders.weight && now.weekday === 'Sun' && timeMatches(subscription.reminders.weightTime, now.hour, now.minute)) jobs.push({ kind: 'weight', title: 'Meal Tracker', body: 'Está na altura de registar o teu peso desta semana.', slot: `${now.day}-weight` });
+      if (subscription.reminders.weight && now.weekday === 'Sun' && timeMatches('08:00', now.hour, now.minute)) jobs.push({ kind: 'weight', title: 'Meal Tracker', body: 'Está na altura de registar o teu peso desta semana.', slot: `${now.day}-weight` });
       for (const job of jobs) {
         const logged = await client.query('SELECT 1 FROM push_notification_log WHERE subscription_id = $1 AND kind = $2 AND slot = $3', [subscription.id, job.kind, job.slot]);
         if (logged.rowCount) continue;

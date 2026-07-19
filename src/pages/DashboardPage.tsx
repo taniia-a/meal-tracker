@@ -1,15 +1,20 @@
-import { ArrowRight, Flame, Plus, Sparkles } from 'lucide-react';
+import { ArrowRight, Droplets, Flame, Plus, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { NutritionProgress, sumMacros } from '../components/NutritionProgress';
 import { useMeals } from '../store/MealContext';
 import { recipeName } from '../lib/recipe-language';
 import { nutritionDay } from '../lib/nutrition-day';
+import { useState } from 'react';
 
 export default function DashboardPage() {
-  const { entries, goals, recipes } = useMeals();
+  const { entries, goals, recipes, profile, waterConsumedMl, waterEntryDay, adjustWater } = useMeals();
   const { t, i18n } = useTranslation();
+  const [waterError, setWaterError] = useState('');
+  const [isUpdatingWater, setIsUpdatingWater] = useState(false);
+  const [customWaterMl, setCustomWaterMl] = useState('100');
   const today = nutritionDay();
+  const todayWaterMl = waterEntryDay === today ? waterConsumedMl : 0;
   const todayEntries = entries.filter((entry) => entry.date === today);
   const total = sumMacros(todayEntries);
   const remaining = Math.max(goals.calories - total.calories, 0);
@@ -21,6 +26,28 @@ export default function DashboardPage() {
     const calorieScore = Math.abs(remaining - recipe.calories) / Math.max(goals.calories, 1);
     return { recipe, score: macroScore + calorieScore };
   }).sort((a, b) => a.score - b.score).slice(0, 3) : [];
+  const waterProgress = Math.min((todayWaterMl / profile.waterGoalMl) * 100, 100);
+  const updateWater = async (amountMl: number) => {
+    setIsUpdatingWater(true);
+    setWaterError('');
+    try {
+      await adjustWater(amountMl);
+      return true;
+    } catch (error) {
+      setWaterError(error instanceof Error ? error.message : t('Não foi possível atualizar a água.'));
+      return false;
+    } finally {
+      setIsUpdatingWater(false);
+    }
+  };
+  const addCustomWater = async () => {
+    const amountMl = Number(customWaterMl);
+    if (!Number.isFinite(amountMl) || amountMl <= 0) {
+      setWaterError(t('Introduz uma quantidade de água válida.'));
+      return;
+    }
+    if (await updateWater(amountMl)) setCustomWaterMl('100');
+  };
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -32,7 +59,12 @@ export default function DashboardPage() {
       <section className="mt-8 grid gap-5 lg:grid-cols-[1.1fr_1fr]">
         <div className="card relative overflow-hidden bg-ink p-7 text-white">
           <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-leaf-500/20 blur-2xl" />
-          <div className="relative"><div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-leaf-100"><Flame size={17} /> {t('Calorias restantes')}</div><div className="mt-5 flex items-end gap-3"><span className="font-display text-6xl font-extrabold">{Math.round(remaining)}</span><span className="mb-2 text-stone-300">kcal</span></div><p className="mt-3 text-sm text-stone-300">{t('Consumiste {{consumed}} das {{goal}} kcal planeadas.', { consumed: Math.round(total.calories), goal: goals.calories })}</p><div className="mt-6 h-3 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-leaf-500" style={{ width: `${Math.min(total.calories / goals.calories * 100, 100)}%` }} /></div></div>
+          <div className="relative">
+            <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-leaf-100"><Flame size={17} /> {t('Calorias restantes')}</div>
+            <div className="mt-5 flex items-end gap-3"><span className="font-display text-6xl font-extrabold">{Math.round(remaining)}</span><span className="mb-2 text-stone-300">kcal</span></div>
+            <p className="mt-3 text-sm text-stone-300">{t('Consumiste {{consumed}} das {{goal}} kcal planeadas.', { consumed: Math.round(total.calories), goal: goals.calories })}</p>
+            <div className="mt-6 h-3 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-leaf-500" style={{ width: `${Math.min(total.calories / goals.calories * 100, 100)}%` }} /></div>
+          </div>
         </div>
         <div className="card space-y-6 p-7">
           <h2 className="text-lg font-bold">{t('Macronutrientes')}</h2>
@@ -40,6 +72,21 @@ export default function DashboardPage() {
           <NutritionProgress label={t('Hidratos')} value={total.carbs} goal={goals.carbs} unit="g" color="bg-amber-400" />
           <NutritionProgress label={t('Gordura')} value={total.fat} goal={goals.fat} unit="g" color="bg-rose-400" />
         </div>
+      </section>
+
+      <section className="card mt-6 p-7">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-sky-500/15 text-sky-400"><Droplets size={24} /></div><div><h2 className="text-xl font-bold">{t('Água')}</h2><p className="mt-1 text-sm text-stone-400">{t('{{consumed}} ml de {{goal}} ml', { consumed: todayWaterMl, goal: profile.waterGoalMl })}</p></div></div>
+          <Link to="/diario" className="flex items-center gap-1 text-sm font-bold text-leaf-600">{t('Ver diário')} <ArrowRight size={16} /></Link>
+        </div>
+        <div className="mt-5 h-3 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-sky-500 transition-all" style={{ width: `${waterProgress}%` }} /></div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <label className="text-sm font-semibold text-stone-300" htmlFor="custom-water">{t('Outro valor')}</label>
+          <div className="relative"><input id="custom-water" type="number" inputMode="numeric" min="1" max="5000" step="1" value={customWaterMl} onChange={(event) => setCustomWaterMl(event.target.value)} className="input h-10 w-24 py-2 pr-9" /><span className="pointer-events-none absolute right-3 top-2.5 text-xs text-stone-400">ml</span></div>
+          <button type="button" disabled={isUpdatingWater || !customWaterMl} onClick={() => void addCustomWater()} className="h-10 rounded-xl border border-sky-400/40 px-4 text-sm font-bold text-sky-300 transition hover:bg-sky-500/10 disabled:opacity-50">{t('Adicionar água')}</button>
+          <button type="button" disabled={isUpdatingWater} onClick={() => void updateWater(250)} className="inline-flex h-10 items-center gap-2 rounded-xl bg-sky-500 px-4 text-sm font-bold text-white transition hover:bg-sky-400 disabled:opacity-60"><Plus size={17} /> 250 ml</button>
+        </div>
+        {waterError && <p role="alert" className="mt-3 text-sm font-semibold text-rose-400">{waterError}</p>}
       </section>
 
       <section className="card mt-6 p-7">

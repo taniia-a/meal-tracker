@@ -62,6 +62,13 @@ export interface MealEntry extends Macros {
   isConsumed: boolean;
 }
 
+export interface WaterEntry {
+  id: string;
+  date: string;
+  amountMl: number;
+  createdAt: string;
+}
+
 export type NutritionGoals = Macros;
 
 export type MetabolicSex = "female" | "male";
@@ -88,4 +95,5 @@ export interface NutritionProfile extends NutritionProfileInput {
   onboardingCompleted: boolean;
   goalMode: GoalMode;
   goals: NutritionGoals;
+  waterGoalMl: number;
 }

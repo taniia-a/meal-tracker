@@ -121,7 +121,7 @@ export default function ProgressPage() {
           t(
             profile.goalMode === "calculated"
               ? "Peso guardado e objetivos recalculados."
-              : "Peso guardado com sucesso.",
+              : "Peso guardado e objetivo de água atualizado.",
           ),
         );
         setEditing(null);

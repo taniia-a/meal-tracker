@@ -12,12 +12,12 @@ const currentDate = () => formatLocalDate(new Date());
 const previousDate = () => { const date = new Date(); date.setDate(date.getDate() - 1); return formatLocalDate(date); };
 const suggestedMealDate = () => new Date().getHours() < 4 ? previousDate() : currentDate();
 
-export default function AddMealModal({ recipe, entry, onClose }: { recipe: Recipe; entry?: MealEntry; onClose: () => void }) {
+export default function AddMealModal({ recipe, entry, initialDate, onClose }: { recipe: Recipe; entry?: MealEntry; initialDate?: string; onClose: () => void }) {
   const { addMeal, updateMeal } = useMeals();
   const { t, i18n } = useTranslation();
   const [mealType, setMealType] = useState<MealType>(entry?.mealType ?? 'Almoço');
   const [portions, setPortions] = useState(entry?.portions ?? 1);
-  const [date, setDate] = useState(entry?.date ?? suggestedMealDate);
+  const [date, setDate] = useState(entry?.date ?? initialDate ?? suggestedMealDate);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

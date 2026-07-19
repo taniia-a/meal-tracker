@@ -18,6 +18,7 @@ import {
   Recipe,
   RecipeInput,
   RecipeTaste,
+  WaterEntry,
 } from "../types";
 import { calculateNutrition } from "../lib/nutrition";
 import { useTranslation } from "react-i18next";
@@ -30,12 +31,18 @@ interface MealContextValue {
   entries: MealEntry[];
   goals: NutritionGoals;
   profile: NutritionProfile;
+  waterConsumedMl: number;
+  waterEntryDay: string;
+  waterEntries: WaterEntry[];
   updateProfile: (
     profile: NutritionProfileInput,
     goals: NutritionGoals,
     goalMode: GoalMode,
   ) => Promise<void>;
   syncProgressWeight: (weightKg: number) => Promise<void>;
+  updateWaterGoal: (waterGoalMl: number) => Promise<void>;
+  adjustWater: (amountMl: number, entryDate?: string) => Promise<void>;
+  removeWater: (entryId: string) => Promise<void>;
   saveRecipe: (recipe: RecipeInput, recipeId?: string) => Promise<void>;
   deleteRecipe: (recipeId: string) => Promise<void>;
   toggleFavorite: (recipeId: string) => Promise<void>;
@@ -63,6 +70,8 @@ const defaultGoals: NutritionGoals = {
   fat: 65,
 };
 const localToday = nutritionDay;
+const calculateWaterGoal = (weightKg: number) =>
+  Math.min(10000, Math.max(250, Math.round((weightKg * 35) / 50) * 50));
 const recipeColumns =
   "id, owner_user_id, is_public, image_url, name, name_en, category, taste, instructions, instructions_en, notes, notes_en, prep_minutes, servings, calories, protein, carbs, fat";
 
@@ -79,6 +88,9 @@ export function MealProvider({
   const [isRecipesLoading, setIsRecipesLoading] = useState(true);
   const [entries, setEntries] = useState<MealEntry[]>([]);
   const [goals, setGoals] = useState<NutritionGoals>(defaultGoals);
+  const [waterConsumedMl, setWaterConsumedMl] = useState(0);
+  const [waterEntryDay, setWaterEntryDay] = useState(localToday());
+  const [waterEntries, setWaterEntries] = useState<WaterEntry[]>([]);
   const [profile, setProfile] = useState<NutritionProfile | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState("");
@@ -96,7 +108,7 @@ export function MealProvider({
         .from("profiles")
         .upsert({ user_id: userId }, { onConflict: "user_id" })
         .select(
-          "user_id, calorie_goal, protein_goal, carbs_goal, fat_goal, birth_year, metabolic_sex, height_cm, weight_kg, activity_level, nutrition_goal, goal_mode, onboarding_completed",
+          "user_id, calorie_goal, protein_goal, carbs_goal, fat_goal, water_goal_ml, birth_year, metabolic_sex, height_cm, weight_kg, activity_level, nutrition_goal, goal_mode, onboarding_completed",
         )
         .single();
 
@@ -125,6 +137,7 @@ export function MealProvider({
           goalMode: data.goal_mode === "manual" ? "manual" : "calculated",
           onboardingCompleted: Boolean(data.onboarding_completed),
           goals: loadedGoals,
+          waterGoalMl: Number(data.water_goal_ml || 2000),
         });
       }
 
@@ -132,6 +145,33 @@ export function MealProvider({
     }
 
     loadProfile();
+    return () => {
+      isActive = false;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadWater() {
+      if (!neonClient) return;
+      const { data, error } = await neonClient
+        .from("water_entries")
+        .select("id, entry_date, amount_ml, created_at")
+        .order("created_at", { ascending: false });
+      if (!isActive) return;
+      if (error) {
+        setProfileError(error.message);
+        return;
+      }
+      const loadedEntries = (data ?? []).map((entry) => mapWaterEntry(entry));
+      const entryDay = localToday();
+      setWaterEntries(loadedEntries);
+      setWaterConsumedMl(loadedEntries.filter((entry) => entry.date === entryDay).reduce((sum, entry) => sum + entry.amountMl, 0));
+      setWaterEntryDay(entryDay);
+    }
+
+    loadWater();
     return () => {
       isActive = false;
     };
@@ -235,12 +275,15 @@ export function MealProvider({
         protein_goal: nextGoals.protein,
         carbs_goal: nextGoals.carbs,
         fat_goal: nextGoals.fat,
+        ...(profile?.onboardingCompleted
+          ? {}
+          : { water_goal_ml: calculateWaterGoal(input.weightKg) }),
         onboarding_completed: true,
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", userId)
       .select(
-        "user_id, calorie_goal, protein_goal, carbs_goal, fat_goal, birth_year, metabolic_sex, height_cm, weight_kg, activity_level, nutrition_goal, goal_mode, onboarding_completed",
+        "user_id, calorie_goal, protein_goal, carbs_goal, fat_goal, water_goal_ml, birth_year, metabolic_sex, height_cm, weight_kg, activity_level, nutrition_goal, goal_mode, onboarding_completed",
       )
       .single();
 
@@ -286,26 +329,81 @@ export function MealProvider({
       goalMode: data.goal_mode === "manual" ? "manual" : "calculated",
       onboardingCompleted: Boolean(data.onboarding_completed),
       goals: savedGoals,
+      waterGoalMl: Number(data.water_goal_ml || 2000),
     });
   };
 
+  const updateWaterGoal = async (waterGoalMl: number) => {
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const { data, error } = await neonClient
+      .from("profiles")
+      .update({ water_goal_ml: waterGoalMl, updated_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .select("water_goal_ml")
+      .single();
+    if (error || !data) throw new Error(error?.message || "Não foi possível guardar o objetivo de água.");
+    setProfile((current) => current ? { ...current, waterGoalMl: Number(data.water_goal_ml) } : current);
+  };
+
+  const adjustWater = async (amountMl: number, requestedDate = localToday()) => {
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const entryDay = requestedDate;
+    if (!Number.isFinite(amountMl) || amountMl <= 0) throw new Error("Introduz uma quantidade de água válida.");
+    const { data, error } = await neonClient
+      .from("water_entries")
+      .insert({ user_id: userId, entry_date: entryDay, amount_ml: amountMl, updated_at: new Date().toISOString() })
+      .select("id, entry_date, amount_ml, created_at")
+      .single();
+    if (error || !data) throw new Error(error?.message || "Não foi possível atualizar a água.");
+    const entry = mapWaterEntry(data);
+    setWaterEntries((current) => [entry, ...current]);
+    if (entryDay === localToday()) {
+      setWaterConsumedMl((current) => (waterEntryDay === entryDay ? current + entry.amountMl : entry.amountMl));
+      setWaterEntryDay(entryDay);
+    }
+  };
+
+  const removeWater = async (entryId: string) => {
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const entry = waterEntries.find((item) => item.id === entryId);
+    const { error } = await neonClient.from("water_entries").delete().eq("id", entryId);
+    if (error) throw new Error(error.message);
+    setWaterEntries((current) => current.filter((item) => item.id !== entryId));
+    if (entry?.date === localToday()) setWaterConsumedMl((current) => Math.max(0, current - entry.amountMl));
+  };
+
   const syncProgressWeight = async (weightKg: number) => {
-    if (!neonClient || !profile || profile.goalMode !== "calculated") return;
+    if (!neonClient || !profile) return;
     const goalsForWeight = calculateNutrition({ ...profile, weightKg });
+    const waterGoalMl = calculateWaterGoal(weightKg);
+    const values = {
+      water_goal_ml: waterGoalMl,
+      updated_at: new Date().toISOString(),
+      ...(profile.goalMode === "calculated"
+        ? {
+            calorie_goal: goalsForWeight.calories,
+            protein_goal: goalsForWeight.protein,
+            carbs_goal: goalsForWeight.carbs,
+            fat_goal: goalsForWeight.fat,
+          }
+        : {}),
+    };
     const { error } = await neonClient
       .from("profiles")
-      .update({
-        calorie_goal: goalsForWeight.calories,
-        protein_goal: goalsForWeight.protein,
-        carbs_goal: goalsForWeight.carbs,
-        fat_goal: goalsForWeight.fat,
-        updated_at: new Date().toISOString(),
-      })
+      .update(values)
       .eq("user_id", userId);
     if (error) throw new Error(error.message);
-    setGoals(goalsForWeight);
+    if (profile.goalMode === "calculated") setGoals(goalsForWeight);
     setProfile((current) =>
-      current ? { ...current, goals: goalsForWeight } : current,
+      current
+        ? {
+            ...current,
+            waterGoalMl,
+            ...(current.goalMode === "calculated"
+              ? { goals: goalsForWeight }
+              : {}),
+          }
+        : current,
     );
   };
 
@@ -530,8 +628,14 @@ export function MealProvider({
         entries,
         goals,
         profile,
+        waterConsumedMl,
+        waterEntryDay,
+        waterEntries,
         updateProfile,
         syncProgressWeight,
+        updateWaterGoal,
+        adjustWater,
+        removeWater,
         saveRecipe,
         deleteRecipe,
         toggleFavorite,
@@ -612,6 +716,17 @@ interface MealEntryRow {
   meal_type: MealType;
   portions: number | string;
   is_consumed: boolean;
+}
+
+interface WaterEntryRow {
+  id: string;
+  entry_date: string;
+  amount_ml: number | string;
+  created_at: string;
+}
+
+function mapWaterEntry(row: WaterEntryRow): WaterEntry {
+  return { id: row.id, date: row.entry_date, amountMl: Number(row.amount_ml), createdAt: row.created_at };
 }
 
 function mapMealEntry(row: MealEntryRow, recipe: Recipe): MealEntry {

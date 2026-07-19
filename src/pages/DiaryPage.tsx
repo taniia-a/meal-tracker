@@ -1,12 +1,13 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Pencil, ShoppingCart, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { CalendarDays, ChevronLeft, ChevronRight, Droplets, Pencil, Plus, Search, ShoppingCart, Trash2, X } from 'lucide-react';
+import { FormEvent, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AddMealModal from '../components/AddMealModal';
 import { sumMacros } from '../components/NutritionProgress';
 import { useMeals } from '../store/MealContext';
-import { MealEntry, MealType } from '../types';
+import { MealEntry, MealType, Recipe } from '../types';
 import { addShoppingEntryIds } from '../lib/shopping-list';
 import { formatLocalDate, nutritionDay } from '../lib/nutrition-day';
+import { recipeName } from '../lib/recipe-language';
 
 const types: MealType[] = ['Pequeno-almoço', 'Almoço', 'Lanche', 'Jantar'];
 const formatDateValue = formatLocalDate;
@@ -21,14 +22,18 @@ function weekFrom(dateValue: string) {
 }
 
 export default function DiaryPage() {
-  const { entries, recipes, profile, removeMeal } = useMeals();
+  const { entries, recipes, profile, removeMeal, waterEntries, removeWater, adjustWater } = useMeals();
   const { t, i18n } = useTranslation();
   const [date, setDate] = useState(today);
   const [view, setView] = useState<'day' | 'week'>('day');
   const [editing, setEditing] = useState<MealEntry | null>(null);
+  const [adding, setAdding] = useState<Recipe | null>(null);
+  const [isRecipePickerOpen, setIsRecipePickerOpen] = useState(false);
+  const [isWaterModalOpen, setIsWaterModalOpen] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [shoppingMessage, setShoppingMessage] = useState('');
   const daily = entries.filter((entry) => entry.date === date);
+  const dailyWater = waterEntries.filter((entry) => entry.date === date);
   const total = sumMacros(daily);
   const week = useMemo(() => weekFrom(date), [date]);
   const locale = i18n.language.startsWith('en') ? 'en-GB' : 'pt-PT';
@@ -37,6 +42,11 @@ export default function DiaryPage() {
     setDeleteError('');
     try { await removeMeal(entryId); }
     catch (error) { setDeleteError(error instanceof Error ? error.message : t('Não foi possível apagar o registo.')); }
+  };
+  const deleteWaterEntry = async (entryId: string) => {
+    setDeleteError('');
+    try { await removeWater(entryId); }
+    catch (error) { setDeleteError(error instanceof Error ? error.message : t('Não foi possível apagar o registo de água.')); }
   };
 
   const moveWeek = (amount: number) => {
@@ -55,17 +65,50 @@ export default function DiaryPage() {
   const entryName = (entry: MealEntry) => i18n.language.startsWith('en') && entry.recipeNameEn ? entry.recipeNameEn : entry.recipeName;
 
   return <div className="mx-auto max-w-7xl">
-    <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><p className="font-semibold text-leaf-600">{t('Histórico')}</p><h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">{t('Diário de refeições')}</h1><p className="mt-2 text-stone-500">{t('Consulta e gere tudo o que registaste.')}</p></div><div className="flex flex-col gap-3 sm:flex-row"><div className="flex rounded-2xl border border-white/10 bg-white/5 p-1"><button onClick={() => setView('day')} className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold ${view === 'day' ? 'bg-leaf-600 text-white' : 'text-stone-400'}`}>{t('Dia')}</button><button onClick={() => setView('week')} className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold ${view === 'week' ? 'bg-leaf-600 text-white' : 'text-stone-400'}`}>{t('Semana')}</button></div>{view === 'day' && <label className="relative w-44"><CalendarDays className="absolute left-4 top-3.5 text-stone-400" size={19} /><input className="input !w-44 !pl-12" type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>}</div></div>
+    <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><p className="font-semibold text-leaf-600">{t('Histórico')}</p><h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">{t('Diário de refeições')}</h1><p className="mt-2 text-stone-500">{t('Consulta e gere tudo o que registaste.')}</p></div><div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end"><button onClick={() => setIsRecipePickerOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-leaf-600 px-4 py-3 text-sm font-bold text-white"><Plus size={18} /> {t('Adicionar refeição')}</button><div className="flex rounded-2xl border border-white/10 bg-white/5 p-1"><button onClick={() => setView('day')} className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold ${view === 'day' ? 'bg-leaf-600 text-white' : 'text-stone-400'}`}>{t('Dia')}</button><button onClick={() => setView('week')} className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold ${view === 'week' ? 'bg-leaf-600 text-white' : 'text-stone-400'}`}>{t('Semana')}</button></div>{view === 'day' && <label className="relative w-44"><CalendarDays className="absolute left-4 top-3.5 text-stone-400" size={19} /><input className="input !w-44 !pl-12" type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>}</div></div>
 
     {deleteError && <p role="alert" className="mt-5 rounded-2xl bg-rose-500/10 p-4 text-sm font-semibold text-rose-300">{deleteError}</p>}{shoppingMessage && <p role="status" className="mt-5 rounded-2xl bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-300">{shoppingMessage}</p>}
 
     {view === 'day' ? <>
       <p className="mt-8 text-sm font-bold text-stone-400">{t('Totais previstos')}</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4"><Summary value={Math.round(total.calories)} label={t('Calorias')} unit="kcal" /><Summary value={Math.round(total.protein)} label={t('Proteína')} unit="g" /><Summary value={Math.round(total.carbs)} label={t('Hidratos')} unit="g" /><Summary value={Math.round(total.fat)} label={t('Gordura')} unit="g" /></div>
+      <section className="card mt-6 p-6"><div className="flex items-center justify-between gap-4"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-sky-500/15 text-sky-400"><Droplets size={20} /></div><div><h2 className="font-bold">{t('Água')}</h2><p className="text-sm text-stone-400">{t('{{count}} movimento(s)', { count: dailyWater.length })}</p></div></div><div className="flex items-center gap-3"><span className="text-lg font-extrabold text-sky-300">{dailyWater.reduce((sum, entry) => sum + entry.amountMl, 0)} ml</span><button onClick={() => setIsWaterModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-sky-400/40 px-3 py-2 text-sm font-bold text-sky-300 hover:bg-sky-500/10"><Plus size={17} /> {t('Adicionar água')}</button></div></div>{dailyWater.length ? <div className="mt-3 divide-y divide-white/10">{dailyWater.map((entry) => <div key={entry.id} className="flex items-center justify-between py-3"><span className="font-semibold">+{entry.amountMl} ml</span><button onClick={() => void deleteWaterEntry(entry.id)} aria-label={t('Apagar registo de água')} className="rounded-xl p-2 text-stone-400 hover:bg-rose-500/10 hover:text-rose-400"><Trash2 size={17} /></button></div>)}</div> : <p className="mt-4 rounded-2xl bg-white/5 p-4 text-sm text-stone-400">{t('Ainda não registaste água neste dia.')}</p>}</section>
       <div className="mt-6 space-y-4">{types.map((type) => { const meals = daily.filter((entry) => entry.mealType === type); return <section key={type} className="card p-6"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">{t(type)}</h2><span className="text-sm font-semibold text-stone-400">{Math.round(sumMacros(meals).calories)} kcal</span></div>{meals.length === 0 ? <p className="mt-4 rounded-2xl bg-white/5 p-4 text-sm text-stone-400">{t('Sem registos.')}</p> : <div className="mt-3 divide-y divide-white/10">{meals.map((meal) => { const consumed = meal.date <= today; return <div key={meal.id} className="flex items-center justify-between gap-3 py-3"><div><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{entryName(meal)}</p><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${consumed ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'}`}>{t(consumed ? 'Consumida' : 'Planeada')}</span></div><p className="text-xs text-stone-400">{t('{{count}} porção(ões)', { count: meal.portions })} · P {meal.protein}g · C {meal.carbs}g · F {meal.fat}g</p></div><div className="flex items-center gap-2"><span className="mr-1 text-sm font-bold">{meal.calories} kcal</span><button onClick={() => setEditing(meal)} aria-label={t('Editar registo')} className="rounded-xl p-2 text-stone-400 hover:bg-leaf-500/10 hover:text-leaf-700"><Pencil size={17} /></button><button onClick={() => deleteEntry(meal.id)} aria-label={t('Remover refeição')} className="rounded-xl p-2 text-stone-400 hover:bg-rose-500/10 hover:text-rose-400"><Trash2 size={17} /></button></div></div>; })}</div>}</section>; })}</div>
     </> : <WeeklyView week={week} entries={entries} locale={locale} today={today} onPrevious={() => moveWeek(-1)} onNext={() => moveWeek(1)} onCurrent={() => setDate(today)} onOpenDay={openDay} onAddToShoppingList={addWeekToShoppingList} />}
 
+    {isRecipePickerOpen && <RecipePicker recipes={recipes} onClose={() => setIsRecipePickerOpen(false)} onSelect={(recipe) => { setAdding(recipe); setIsRecipePickerOpen(false); }} />}
+    {isWaterModalOpen && <AddWaterModal date={date} onClose={() => setIsWaterModalOpen(false)} onSave={adjustWater} />}
+    {adding && <AddMealModal recipe={adding} initialDate={date} onClose={() => setAdding(null)} />}
     {editing && (() => { const recipe = recipes.find((item) => item.id === editing.recipeId); return recipe ? <AddMealModal recipe={recipe} entry={editing} onClose={() => setEditing(null)} /> : null; })()}
   </div>;
+}
+
+function AddWaterModal({ date, onClose, onSave }: { date: string; onClose: () => void; onSave: (amountMl: number, entryDate: string) => Promise<void> }) {
+  const { t } = useTranslation();
+  const [amount, setAmount] = useState('100');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const amountMl = Number(amount);
+    if (!Number.isFinite(amountMl) || amountMl <= 0) { setError(t('Introduz uma quantidade de água válida.')); return; }
+    setSaving(true); setError('');
+    try { await onSave(amountMl, date); onClose(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : t('Não foi possível atualizar a água.')); }
+    finally { setSaving(false); }
+  };
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-5 backdrop-blur-sm"><form onSubmit={submit} className="card w-full max-w-sm p-6"><div className="flex items-start justify-between"><div><p className="text-sm font-semibold text-sky-400">{t('Água')}</p><h2 className="mt-1 text-xl font-bold">{t('Adicionar água')}</h2><p className="mt-1 text-sm text-stone-400">{date}</p></div><button type="button" onClick={onClose} className="rounded-xl p-2 hover:bg-white/5" aria-label={t('Cancelar')}><X /></button></div><label className="mt-6 block text-sm font-semibold">{t('Quantidade de água (ml)')}<div className="relative mt-2"><input autoFocus type="number" inputMode="numeric" min="1" step="1" value={amount} onChange={(event) => setAmount(event.target.value)} className="input pr-10" /><span className="pointer-events-none absolute right-4 top-3.5 text-sm text-stone-400">ml</span></div></label>{error && <p role="alert" className="mt-4 text-sm font-semibold text-rose-400">{error}</p>}<button disabled={saving || !amount} className="mt-6 w-full rounded-2xl bg-sky-500 px-5 py-3 font-bold text-white disabled:opacity-60">{saving ? t('A guardar...') : t('Adicionar água')}</button></form></div>;
+}
+
+function RecipePicker({ recipes, onClose, onSelect }: { recipes: Recipe[]; onClose: () => void; onSelect: (recipe: Recipe) => void }) {
+  const { t, i18n } = useTranslation();
+  const [query, setQuery] = useState('');
+  const normalise = (value: string) => value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const terms = normalise(query).trim().split(/\s+/).filter(Boolean);
+  const filtered = recipes.filter((recipe) => {
+    const searchable = [recipe.name, recipe.nameEn, ...recipe.ingredients, ...recipe.ingredientsEn].map(normalise);
+    return terms.every((term) => searchable.some((value) => value.includes(term)));
+  }).slice(0, 30);
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-5 backdrop-blur-sm"><section className="card flex max-h-[80vh] w-full max-w-xl flex-col p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-semibold text-leaf-600">{t('Diário')}</p><h2 className="mt-1 text-xl font-bold">{t('Adicionar refeição')}</h2><p className="mt-1 text-sm text-stone-400">{t('Pesquisa uma receita para registar no diário.')}</p></div><button type="button" onClick={onClose} className="rounded-xl p-2 hover:bg-white/5" aria-label={t('Cancelar')}><X /></button></div><label className="relative mt-5"><Search className="absolute left-4 top-3.5 text-stone-400" size={19} /><input autoFocus className="input !pl-12" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('Ex.: frango, aveia, salmão...')} /></label><div className="mt-4 min-h-0 space-y-2 overflow-y-auto pr-1">{filtered.length ? filtered.map((recipe) => <button key={recipe.id} type="button" onClick={() => onSelect(recipe)} className="flex w-full items-center justify-between gap-4 rounded-2xl border border-white/10 p-4 text-left transition hover:border-leaf-500/50 hover:bg-white/5"><div><p className="font-bold">{recipeName(recipe, i18n.language)}</p><p className="mt-1 text-xs text-stone-400">{Math.round(recipe.calories)} kcal · P {Math.round(recipe.protein)}g · C {Math.round(recipe.carbs)}g · G {Math.round(recipe.fat)}g</p></div><Plus className="shrink-0 text-leaf-600" size={20} /></button>) : <p className="rounded-2xl bg-white/5 p-5 text-center text-sm text-stone-400">{t('Nenhuma receita encontrada.')}</p>}</div></section></div>;
 }
 
 function WeeklyView({ week, entries, locale, today: currentDay, onPrevious, onNext, onCurrent, onOpenDay, onAddToShoppingList }: { week: string[]; entries: MealEntry[]; locale: string; today: string; onPrevious: () => void; onNext: () => void; onCurrent: () => void; onOpenDay: (day: string) => void; onAddToShoppingList: () => void }) {

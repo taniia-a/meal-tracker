@@ -221,9 +221,9 @@ export default function ProgressPage() {
           </div>
           <label className="mt-5 block text-sm font-semibold">
             {t("Data")}
-            <div className="mt-2 w-full overflow-hidden rounded-2xl">
+            <div className="mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-[#141019] focus-within:border-leaf-500 focus-within:ring-4 focus-within:ring-leaf-100">
               <input
-                className="input !w-full !min-w-0"
+                className="input !w-full !min-w-0 !border-0 !bg-transparent !shadow-none"
                 type="date"
                 max={today()}
                 value={date}

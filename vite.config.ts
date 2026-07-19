@@ -2,6 +2,8 @@ import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { estimateMeal } from './api/meal-estimate';
+import { pushSubscription } from './api/push-subscription';
+import { pushTest } from './api/push-test';
 
 const allowedContentTypes = ['image/jpeg', 'image/png', 'image/webp'];
 
@@ -18,6 +20,20 @@ function localBlobUpload(env: Record<string, string>): Plugin {
   return {
     name: 'local-blob-upload',
     configureServer(server) {
+      const handleApiRequest = (path: string, handler: (request: Request, env: Record<string, string | undefined>) => Promise<Response>) => {
+        server.middlewares.use(path, async (request, response) => {
+          const chunks: Buffer[] = [];
+          for await (const chunk of request) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+          const headers = new Headers();
+          for (const [name, value] of Object.entries(request.headers)) if (typeof value === 'string') headers.set(name, value);
+          const result = await handler(new Request(`http://localhost${path}`, { method: request.method, headers, body: ['GET', 'HEAD'].includes(request.method ?? '') ? undefined : Buffer.concat(chunks) }), env);
+          response.statusCode = result.status;
+          result.headers.forEach((value, name) => response.setHeader(name, value));
+          response.end(Buffer.from(await result.arrayBuffer()));
+        });
+      };
+      handleApiRequest('/api/push-subscription', pushSubscription);
+      handleApiRequest('/api/push-test', pushTest);
       server.middlewares.use('/api/meal-estimate', async (request, response) => {
         const chunks: Buffer[] = [];
         for await (const chunk of request) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));

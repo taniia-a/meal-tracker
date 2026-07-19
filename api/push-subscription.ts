@@ -11,18 +11,18 @@ async function authenticatedUser(token: string, dataApiUrl?: string) {
   return data[0]?.user_id ?? null;
 }
 
-function connectionString() {
-  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL não está configurada.');
-  return process.env.DATABASE_URL;
+function connectionString(env: Record<string, string | undefined>) {
+  if (!env.DATABASE_URL) throw new Error('DATABASE_URL não está configurada.');
+  return env.DATABASE_URL;
 }
 
-export default async function handler(request: Request) {
+export async function pushSubscription(request: Request, env: Record<string, string | undefined> = process.env) {
   if (!['POST', 'DELETE'].includes(request.method)) return new Response('Method not allowed', { status: 405 });
   try {
     const body = await request.json() as { token?: string; subscription?: PushSubscriptionPayload; reminders?: ReminderPayload; endpoint?: string };
-    const userId = await authenticatedUser(body.token ?? '', process.env.VITE_NEON_DATA_API_URL);
+    const userId = await authenticatedUser(body.token ?? '', env.VITE_NEON_DATA_API_URL);
     if (!userId) return Response.json({ error: 'A tua sessão expirou. Inicia sessão novamente.' }, { status: 401 });
-    const client = new pg.Client({ connectionString: connectionString() });
+    const client = new pg.Client({ connectionString: connectionString(env) });
     await client.connect();
     try {
       if (request.method === 'DELETE') {
@@ -41,3 +41,5 @@ export default async function handler(request: Request) {
     return Response.json({ error: 'Não foi possível guardar a subscrição de notificações.' }, { status: 500 });
   }
 }
+
+export default { fetch: (request: Request) => pushSubscription(request) };

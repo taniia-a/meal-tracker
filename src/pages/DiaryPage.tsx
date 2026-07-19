@@ -1,4 +1,4 @@
-import { Bot, CalendarDays, ChevronLeft, ChevronRight, Droplets, Pencil, Plus, RefreshCw, Search, ShoppingCart, Sparkles, Trash2, X } from 'lucide-react';
+import { Bot, ChevronLeft, ChevronRight, Droplets, Pencil, Plus, RefreshCw, Search, ShoppingCart, Sparkles, Trash2, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AddMealModal from '../components/AddMealModal';
@@ -59,6 +59,11 @@ export default function DiaryPage() {
     next.setDate(next.getDate() + amount * 7);
     setDate(formatDateValue(next));
   };
+  const moveDay = (amount: number) => {
+    const next = parseDateValue(date);
+    next.setDate(next.getDate() + amount);
+    setDate(formatDateValue(next));
+  };
 
   const openDay = (day: string) => { setDate(day); setView('day'); };
   const addWeekToShoppingList = () => {
@@ -70,7 +75,7 @@ export default function DiaryPage() {
   const entryName = (entry: MealEntry) => i18n.language.startsWith('en') && entry.recipeNameEn ? entry.recipeNameEn : entry.recipeName;
 
   return <div className="mx-auto max-w-7xl">
-    <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><p className="font-semibold text-leaf-600">{t('Histórico')}</p><h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">{t('Diário de refeições')}</h1><p className="mt-2 text-stone-500">{t('Consulta e gere tudo o que registaste.')}</p></div><div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end"><button onClick={() => setIsRecipePickerOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-leaf-600 px-4 py-3 text-sm font-bold text-white"><Search size={18} /> {t('Pesquisar receitas')}</button><button onClick={() => setIsManualMealModalOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-leaf-500/40 px-4 py-3 text-sm font-bold text-leaf-600 hover:bg-leaf-500/10"><Plus size={18} /> {t('Refeição manual')}</button><div className="flex rounded-2xl border border-white/10 bg-white/5 p-1"><button onClick={() => setView('day')} className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold ${view === 'day' ? 'bg-leaf-600 text-white' : 'text-stone-400'}`}>{t('Dia')}</button><button onClick={() => setView('week')} className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold ${view === 'week' ? 'bg-leaf-600 text-white' : 'text-stone-400'}`}>{t('Semana')}</button></div>{view === 'day' && <label className="relative w-44"><CalendarDays className="absolute left-4 top-3.5 text-stone-400" size={19} /><input className="input !w-44 !pl-12" type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>}</div></div>
+    <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><p className="font-semibold text-leaf-600">{t('Histórico')}</p><h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">{t('Diário de refeições')}</h1><p className="mt-2 text-stone-500">{t('Consulta e gere tudo o que registaste.')}</p></div><div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end"><button onClick={() => setIsRecipePickerOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-leaf-600 px-4 py-3 text-sm font-bold text-white"><Search size={18} /> {t('Pesquisar receitas')}</button><button onClick={() => setIsManualMealModalOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-leaf-500/40 px-4 py-3 text-sm font-bold text-leaf-600 hover:bg-leaf-500/10"><Plus size={18} /> {t('Refeição manual')}</button><div className="flex rounded-2xl border border-white/10 bg-white/5 p-1"><button onClick={() => setView('day')} className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold ${view === 'day' ? 'bg-leaf-600 text-white' : 'text-stone-400'}`}>{t('Dia')}</button><button onClick={() => setView('week')} className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold ${view === 'week' ? 'bg-leaf-600 text-white' : 'text-stone-400'}`}>{t('Semana')}</button></div>{view === 'day' && <div className="flex items-center gap-2"><button type="button" onClick={() => moveDay(-1)} className="rounded-xl border border-white/10 p-3 hover:bg-white/5" aria-label={t('Dia anterior')}><ChevronLeft size={19} /></button><label className="w-44"><input className="input !w-44" type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><button type="button" onClick={() => moveDay(1)} className="rounded-xl border border-white/10 p-3 hover:bg-white/5" aria-label={t('Dia seguinte')}><ChevronRight size={19} /></button></div>}</div></div>
 
     {deleteError && <p role="alert" className="mt-5 rounded-2xl bg-rose-500/10 p-4 text-sm font-semibold text-rose-300">{deleteError}</p>}{shoppingMessage && <p role="status" className="mt-5 rounded-2xl bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-300">{shoppingMessage}</p>}
 

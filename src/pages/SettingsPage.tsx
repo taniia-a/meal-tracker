@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import NumberInput from '../components/NumberInput';
 import { FormEvent, useEffect, useState } from 'react';
 import { getReminderSettings, ReminderSettings, saveReminderSettings } from '../lib/reminders';
+import { showAppNotification } from '../lib/notifications';
 
 export default function SettingsPage() {
   const { profile, updateProfile, updateWaterGoal, updateDislikedIngredients } = useMeals();
@@ -58,18 +59,27 @@ function ReminderSettingsPanel() {
     if (permission === 'granted') {
       const hasActive = settings.meals || settings.water || settings.weight;
       update({ ...settings, meals: !hasActive, water: !hasActive, weight: !hasActive });
+      if (!hasActive) void showAppNotification('Meal Tracker', t('Notificações ativadas com sucesso.'));
       setFeedback(hasActive ? t('Lembretes desativados.') : t('Notificações ativadas com sucesso.'));
       return;
     }
     if (!('Notification' in window)) { setPermission('unsupported'); return; }
     const result = await Notification.requestPermission();
     setPermission(result);
-    if (result === 'granted') update({ ...settings, meals: true, water: true, weight: true });
+    if (result === 'granted') {
+      update({ ...settings, meals: true, water: true, weight: true });
+      void showAppNotification('Meal Tracker', t('Notificações ativadas com sucesso.'));
+    }
     setFeedback(result === 'granted' ? t('Notificações ativadas com sucesso.') : t('Permite as notificações nas definições do navegador para receber lembretes.'));
   };
   const toggle = (key: 'meals' | 'water' | 'weight') => update({ ...settings, [key]: !settings[key] });
   const time = (key: 'mealsTime' | 'weightTime', value: string) => update({ ...settings, [key]: value });
   const row = (key: 'meals' | 'weight', timeKey: 'mealsTime' | 'weightTime', label: string, description: string) => <div className="flex flex-col gap-3 border-t border-white/10 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold">{t(label)}</p><p className="mt-1 text-sm text-stone-400">{t(description)}</p></div><div className="flex items-center gap-3"><input className="input h-11 w-32" type="time" disabled={!settings[key]} value={settings[timeKey]} onChange={(event) => time(timeKey, event.target.value)} /><button type="button" role="switch" aria-checked={settings[key]} onClick={() => toggle(key)} className={`h-7 w-12 rounded-full p-1 transition ${settings[key] ? 'bg-leaf-600' : 'bg-white/10'}`}><span className={`block h-5 w-5 rounded-full bg-white transition ${settings[key] ? 'translate-x-5' : ''}`} /></button></div></div>;
   const hasActiveReminders = settings.meals || settings.water || settings.weight;
-  return <section className="card mt-6 p-7"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><h2 className="text-xl font-bold">{t('Lembretes')}</h2><p className="mt-1 text-sm text-stone-400">{t('Escolhe quando queres ser lembrada de acompanhar o teu dia.')}</p></div><button type="button" onClick={() => void enableNotifications()} className="rounded-2xl border border-leaf-500/40 px-4 py-2 text-sm font-bold text-leaf-300">{permission === 'granted' && hasActiveReminders ? t('Desativar lembretes') : t('Ativar notificações')}</button></div><div className="mt-5">{row('meals', 'mealsTime', 'Refeições', 'Lembra-te de registar uma refeição caso ainda não o tenhas feito.')}<div className="flex flex-col gap-3 border-t border-white/10 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold">{t('Água')}</p><p className="mt-1 text-sm text-stone-400">{t('Recebe um lembrete de hora a hora entre as 08:00 e as 22:00, até atingires o objetivo.')}</p></div><button type="button" role="switch" aria-checked={settings.water} onClick={() => toggle('water')} className={`h-7 w-12 rounded-full p-1 transition ${settings.water ? 'bg-leaf-600' : 'bg-white/10'}`}><span className={`block h-5 w-5 rounded-full bg-white transition ${settings.water ? 'translate-x-5' : ''}`} /></button></div>{row('weight', 'weightTime', 'Peso', 'Recebe um lembrete semanal ao domingo para registar o peso.')}</div><p className="mt-2 text-xs text-stone-500">{t('Os lembretes funcionam enquanto o site estiver aberto neste dispositivo.')}</p>{feedback && <p role="status" className="mt-3 text-sm font-semibold text-leaf-600">{feedback}</p>}</section>;
+  const testNotification = async () => {
+    if (permission !== 'granted') { await enableNotifications(); return; }
+    const sent = await showAppNotification('Meal Tracker', t('Esta é uma notificação de teste.'));
+    setFeedback(sent ? t('Notificação de teste enviada.') : t('Não foi possível enviar a notificação. Verifica as permissões do navegador e do sistema.'));
+  };
+  return <section className="card mt-6 p-7"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><h2 className="text-xl font-bold">{t('Lembretes')}</h2><p className="mt-1 text-sm text-stone-400">{t('Escolhe quando queres ser lembrada de acompanhar o teu dia.')}</p></div><div className="flex gap-2"><button type="button" onClick={() => void testNotification()} className="rounded-2xl border border-white/15 px-4 py-2 text-sm font-bold text-stone-200">{t('Testar')}</button><button type="button" onClick={() => void enableNotifications()} className="rounded-2xl border border-leaf-500/40 px-4 py-2 text-sm font-bold text-leaf-300">{permission === 'granted' && hasActiveReminders ? t('Desativar lembretes') : t('Ativar notificações')}</button></div></div><div className="mt-5">{row('meals', 'mealsTime', 'Refeições', 'Lembra-te de registar uma refeição caso ainda não o tenhas feito.')}<div className="flex flex-col gap-3 border-t border-white/10 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold">{t('Água')}</p><p className="mt-1 text-sm text-stone-400">{t('Recebe um lembrete de hora a hora entre as 08:00 e as 22:00, até atingires o objetivo.')}</p></div><button type="button" role="switch" aria-checked={settings.water} onClick={() => toggle('water')} className={`h-7 w-12 rounded-full p-1 transition ${settings.water ? 'bg-leaf-600' : 'bg-white/10'}`}><span className={`block h-5 w-5 rounded-full bg-white transition ${settings.water ? 'translate-x-5' : ''}`} /></button></div>{row('weight', 'weightTime', 'Peso', 'Recebe um lembrete semanal ao domingo para registar o peso.')}</div><p className="mt-2 text-xs text-stone-500">{t('Os lembretes funcionam enquanto o site estiver aberto neste dispositivo.')}</p>{feedback && <p role="status" className="mt-3 text-sm font-semibold text-leaf-600">{feedback}</p>}</section>;
 }

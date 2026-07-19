@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { authClient } from '../lib/auth';
 import { changeLanguage } from '../i18n';
 import ReminderScheduler from './ReminderScheduler';
+import InAppReminder from './InAppReminder';
 
 const navigation = [
   { to: '/', label: 'Resumo', icon: LayoutDashboard }, { to: '/receitas', label: 'Receitas', icon: ChefHat },
@@ -25,6 +26,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-cream">
       <ReminderScheduler />
+      <InAppReminder />
       <header className="sticky top-0 z-30 border-b border-white/10 bg-cream/90 backdrop-blur-xl lg:hidden">
         <div className="flex h-16 items-center justify-between px-5">
           <Brand />

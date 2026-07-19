@@ -2,9 +2,10 @@ import { useEffect } from 'react';
 import { useMeals } from '../store/MealContext';
 import { nutritionDay } from '../lib/nutrition-day';
 import { canSendRepeatingReminder, getReminderSettings, isWaterReminderWindow, markReminderSent, timeReached, wasReminderSent } from '../lib/reminders';
+import { showAppNotification } from '../lib/notifications';
 
 export default function ReminderScheduler() {
-  const { entries, profile, waterConsumedMl } = useMeals();
+  const { profile, waterConsumedMl } = useMeals();
 
   useEffect(() => {
     const checkReminders = () => {
@@ -13,15 +14,15 @@ export default function ReminderScheduler() {
       const day = nutritionDay();
       const notify = (kind: 'meals' | 'water' | 'weight', title: string, body: string) => {
         if (wasReminderSent(profile.userId, day, kind)) return;
-        new Notification(title, { body, icon: '/favicon.svg' });
+        void showAppNotification(title, body);
         markReminderSent(profile.userId, day, kind);
       };
 
-      if (settings.meals && timeReached(settings.mealsTime) && !entries.some((entry) => entry.date === day && entry.isConsumed)) {
+      if (settings.meals && timeReached(settings.mealsTime)) {
         notify('meals', 'Meal Tracker', 'Ainda não registaste nenhuma refeição hoje.');
       }
       if (settings.water && isWaterReminderWindow() && waterConsumedMl < profile.waterGoalMl && canSendRepeatingReminder(profile.userId, 'water', 60)) {
-        new Notification('Meal Tracker', { body: 'Ainda não atingiste o teu objetivo de água de hoje.', icon: '/favicon.svg' });
+        void showAppNotification('Meal Tracker', 'Ainda não atingiste o teu objetivo de água de hoje.');
       }
       // Sunday gives a predictable weekly prompt without requiring another database table.
       if (settings.weight && new Date().getDay() === 0 && timeReached(settings.weightTime)) {
@@ -31,7 +32,7 @@ export default function ReminderScheduler() {
     checkReminders();
     const interval = window.setInterval(checkReminders, 60_000);
     return () => window.clearInterval(interval);
-  }, [entries, profile, waterConsumedMl]);
+  }, [profile, waterConsumedMl]);
 
   return null;
 }

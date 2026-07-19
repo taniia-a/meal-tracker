@@ -1,0 +1,19 @@
+{
+  "name": "Meal Tracker",
+  "short_name": "Meal Tracker",
+  "description": "Receitas, refeições e nutrição sem complicações.",
+  "lang": "pt-PT",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0e0b13",
+  "theme_color": "#0e0b13",
+  "icons": [
+    {
+      "src": "/meal-tracker-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

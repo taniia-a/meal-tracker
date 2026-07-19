@@ -5,9 +5,11 @@ import { useTranslation } from "react-i18next";
 import { recipeName } from "../lib/recipe-language";
 import {
   getShoppingEntryIds,
+  getShoppingCustomItems,
   getShoppingRecipePortions,
   getShoppingRecipes,
   saveShoppingEntryIds,
+  saveShoppingCustomItems,
   saveShoppingRecipePortions,
   saveShoppingRecipes,
 } from "../lib/shopping-list";
@@ -97,6 +99,8 @@ export default function ShoppingListPage() {
     getShoppingRecipePortions(profile.userId),
   );
   const [view, setView] = useState<"ingredients" | "recipes">("ingredients");
+  const [customItems, setCustomItems] = useState(() => getShoppingCustomItems(profile.userId));
+  const [customItemName, setCustomItemName] = useState("");
   const planned = useMemo(
     () => entries.filter((entry) => selectedEntryIds.includes(entry.id)),
     [entries, selectedEntryIds],
@@ -157,6 +161,7 @@ export default function ShoppingListPage() {
         name: string;
         amount: number | null;
         unit: string | null;
+        isCustom: boolean;
         sources: Map<string, { name: string; portions: number }>;
       }
     >();
@@ -204,6 +209,7 @@ export default function ShoppingListPage() {
           name,
           amount: scaledAmount,
           unit: measured?.unit ?? null,
+          isCustom: false,
           sources: new Map(),
         };
         if (scaledAmount !== null && item.amount !== null)
@@ -217,10 +223,15 @@ export default function ShoppingListPage() {
         items.set(key, item);
       });
     });
+    customItems.forEach((name) => {
+      const key = `custom:${normalise(name)}`;
+      if (!key || items.has(key)) return;
+      items.set(key, { key, name: name.trim(), amount: null, unit: null, isCustom: true, sources: new Map([["custom", { name: t("Adicionado manualmente"), portions: 0 }]]) });
+    });
     return [...items.values()].sort((a, b) =>
       a.name.localeCompare(b.name, i18n.language),
     );
-  }, [plannedRecipes, i18n.language]);
+  }, [plannedRecipes, customItems, i18n.language, t]);
   const groupedIngredients = useMemo(() => {
     const categories: IngredientCategory[] = [
       "Fruta e legumes",
@@ -318,7 +329,29 @@ export default function ShoppingListPage() {
     saveShoppingRecipes(profile.userId, []);
     setPortionOverrides({});
     saveShoppingRecipePortions(profile.userId, {});
+    setCustomItems([]);
+    saveShoppingCustomItems(profile.userId, []);
     setChecked([]);
+  };
+  const addCustomItem = () => {
+    const name = customItemName.trim();
+    if (!name) return;
+    setCustomItems((current) => {
+      if (current.some((item) => normalise(item) === normalise(name))) return current;
+      const updated = [...current, name];
+      saveShoppingCustomItems(profile.userId, updated);
+      return updated;
+    });
+    setCustomItemName("");
+  };
+  const removeCustomItem = (key: string) => {
+    const name = key.replace(/^custom:/, "");
+    setCustomItems((current) => {
+      const updated = current.filter((item) => normalise(item) !== name);
+      saveShoppingCustomItems(profile.userId, updated);
+      return updated;
+    });
+    setChecked((current) => current.filter((item) => item !== key));
   };
   const updatePortions = (recipeId: string, portions: number) => {
     if (!Number.isFinite(portions) || portions <= 0) return;
@@ -416,7 +449,7 @@ export default function ShoppingListPage() {
                 {t("Limpar itens assinalados")}
               </button>
             )}
-            {(planned.length > 0 || selectedRecipes.length > 0) && (
+            {(planned.length > 0 || selectedRecipes.length > 0 || customItems.length > 0) && (
               <button
                 onClick={clearList}
                 className="text-sm font-bold text-rose-300 hover:underline"
@@ -426,6 +459,10 @@ export default function ShoppingListPage() {
             )}
           </div>
         </div>
+        <form onSubmit={(event) => { event.preventDefault(); addCustomItem(); }} className="flex flex-col gap-2 border-b border-white/10 p-4 sm:flex-row">
+          <input value={customItemName} onChange={(event) => setCustomItemName(event.target.value)} className="input flex-1" placeholder={t("Ex.: detergente, papel higiénico...")} />
+          <button disabled={!customItemName.trim()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-leaf-500/40 px-4 py-3 text-sm font-bold text-leaf-600 hover:bg-leaf-500/10 disabled:opacity-50"><Plus size={17} /> {t("Adicionar artigo")}</button>
+        </form>
         <div className="border-b border-white/10 p-4">
           <div className="flex rounded-2xl bg-white/5 p-1 sm:w-fit">
             <button
@@ -498,13 +535,11 @@ export default function ShoppingListPage() {
                             </span>
                             <span className="mt-1 block text-xs text-stone-400">
                               {[...item.sources.values()]
-                                .map(
-                                  (source) =>
-                                    `${source.name} · ${t("{{count}} porção(ões)", { count: source.portions })}`,
-                                )
+                                .map((source) => source.portions ? `${source.name} · ${t("{{count}} porção(ões)", { count: source.portions })}` : source.name)
                                 .join(" · ")}
                             </span>
                           </span>
+                          {item.isCustom && <button type="button" onClick={() => removeCustomItem(item.key)} className="ml-auto self-center rounded-xl p-2 text-stone-400 hover:bg-rose-500/10 hover:text-rose-300" aria-label={t("Remover artigo")}><Trash2 size={17} /></button>}
                         </label>
                       );
                     })}

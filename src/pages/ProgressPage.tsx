@@ -1,4 +1,4 @@
-import { Beef, CalendarDays, ChefHat, Flame, LineChart, Pencil, Plus, Target, Trash2, Weight } from "lucide-react";
+import { Beef, CalendarDays, ChefHat, LineChart, Pencil, Plus, Target, Trash2, Weight } from "lucide-react";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import NumberInput from "../components/NumberInput";
@@ -293,12 +293,12 @@ export default function ProgressPage() {
       </div>
       <section className="card mt-6 p-6">
         <div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-leaf-600/15 text-leaf-700"><Target size={22} /></div><div><h2 className="font-bold">{t("Estatísticas")}</h2><p className="text-sm text-stone-400">{t("Baseadas apenas em dias já fechados.")}</p></div></div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Statistic icon={<ChefHat size={19} />} label={t("Receita mais consumida")} value={statistics.mostCookedRecipe || "—"} detail={statistics.mostCookedCount ? t("{{count}} vez(es)", { count: statistics.mostCookedCount }) : t("Sem dados ainda")} />
           <Statistic icon={<Beef size={19} />} label={t("Média diária de proteína")} value={statistics.averageDailyProtein == null ? "—" : `${statistics.averageDailyProtein.toFixed(1)} g`} detail={t("Por dia registado")} />
+          <Statistic icon={<Target size={19} />} label={t("Média diária de hidratos")} value={statistics.averageDailyCarbs == null ? "—" : `${statistics.averageDailyCarbs.toFixed(1)} g`} detail={t("Por dia registado")} />
+          <Statistic icon={<Target size={19} />} label={t("Média diária de gordura")} value={statistics.averageDailyFat == null ? "—" : `${statistics.averageDailyFat.toFixed(1)} g`} detail={t("Por dia registado")} />
           <Statistic icon={<CalendarDays size={19} />} label={t("Média semanal de calorias")} value={statistics.averageWeeklyCalories == null ? "—" : `${Math.round(statistics.averageWeeklyCalories)} kcal`} detail={t("Por semana registada")} />
-          <Statistic icon={<Target size={19} />} label={t("Dias dentro do objetivo")} value={`${statistics.daysWithinGoal} / ${statistics.trackedDays}`} detail={t("Calorias até 10% da meta")} />
-          <Statistic icon={<Flame size={19} />} label={t("Sequência atual")} value={t("{{count}} dia(s)", { count: statistics.currentStreak })} detail={t("Dias seguidos dentro do objetivo")} />
         </div>
       </section>
       <section className="card mt-6 overflow-hidden bg-white/[0.03]">
@@ -395,13 +395,15 @@ function calculateStatistics(entries: MealEntry[], goals: NutritionGoals, langua
   const lastClosedDate = new Date(`${nutritionDay()}T12:00:00`);
   lastClosedDate.setDate(lastClosedDate.getDate() - 1);
   const lastClosedDay = formatLocalDate(lastClosedDate);
-  const completedEntries = entries.filter((entry) => entry.date <= lastClosedDay);
-  const daily = new Map<string, { calories: number; protein: number }>();
+  const completedEntries = entries.filter((entry) => entry.isConsumed && entry.date <= lastClosedDay);
+  const daily = new Map<string, { calories: number; protein: number; carbs: number; fat: number }>();
   const recipeCounts = new Map<string, { name: string; count: number }>();
   for (const entry of completedEntries) {
-    const current = daily.get(entry.date) ?? { calories: 0, protein: 0 };
+    const current = daily.get(entry.date) ?? { calories: 0, protein: 0, carbs: 0, fat: 0 };
     current.calories += entry.calories;
     current.protein += entry.protein;
+    current.carbs += entry.carbs;
+    current.fat += entry.fat;
     daily.set(entry.date, current);
     if (!entry.isManual && entry.recipeId) {
       const recipe = recipeCounts.get(entry.recipeId) ?? { name: language.startsWith("en") && entry.recipeNameEn ? entry.recipeNameEn : entry.recipeName, count: 0 };
@@ -411,6 +413,8 @@ function calculateStatistics(entries: MealEntry[], goals: NutritionGoals, langua
   }
   const dailyValues = [...daily.values()];
   const averageDailyProtein = dailyValues.length ? dailyValues.reduce((sum, day) => sum + day.protein, 0) / dailyValues.length : null;
+  const averageDailyCarbs = dailyValues.length ? dailyValues.reduce((sum, day) => sum + day.carbs, 0) / dailyValues.length : null;
+  const averageDailyFat = dailyValues.length ? dailyValues.reduce((sum, day) => sum + day.fat, 0) / dailyValues.length : null;
   const weekly = new Map<string, number>();
   for (const [day, totals] of daily) {
     const date = new Date(`${day}T12:00:00`);
@@ -420,18 +424,8 @@ function calculateStatistics(entries: MealEntry[], goals: NutritionGoals, langua
     weekly.set(key, (weekly.get(key) ?? 0) + totals.calories);
   }
   const averageWeeklyCalories = weekly.size ? [...weekly.values()].reduce((sum, total) => sum + total, 0) / weekly.size : null;
-  const goalTolerance = goals.calories * 0.1;
-  const daysWithinGoal = dailyValues.filter((day) => Math.abs(day.calories - goals.calories) <= goalTolerance).length;
-  let currentStreak = 0;
-  const streakDate = new Date(`${lastClosedDay}T12:00:00`);
-  while (true) {
-    const day = daily.get(formatLocalDate(streakDate));
-    if (!day || Math.abs(day.calories - goals.calories) > goalTolerance) break;
-    currentStreak += 1;
-    streakDate.setDate(streakDate.getDate() - 1);
-  }
   const mostCooked = [...recipeCounts.values()].sort((first, second) => second.count - first.count)[0];
-  return { averageDailyProtein, averageWeeklyCalories, daysWithinGoal, trackedDays: daily.size, currentStreak, mostCookedRecipe: mostCooked?.name ?? "", mostCookedCount: mostCooked?.count ?? 0 };
+  return { averageDailyProtein, averageDailyCarbs, averageDailyFat, averageWeeklyCalories, mostCookedRecipe: mostCooked?.name ?? "", mostCookedCount: mostCooked?.count ?? 0 };
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

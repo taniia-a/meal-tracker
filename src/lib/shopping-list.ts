@@ -1,6 +1,7 @@
 const keyFor = (userId: string) => `meal-tracker-shopping-entry-ids-${userId}`;
 const recipeKeyFor = (userId: string) => `meal-tracker-shopping-recipes-${userId}`;
 const portionsKeyFor = (userId: string) => `meal-tracker-shopping-recipe-portions-${userId}`;
+const customItemsKeyFor = (userId: string) => `meal-tracker-shopping-custom-items-${userId}`;
 
 export interface ShoppingRecipe {
   recipeId: string;
@@ -47,4 +48,15 @@ export function getShoppingRecipePortions(userId: string): Record<string, number
 
 export function saveShoppingRecipePortions(userId: string, portions: Record<string, number>) {
   localStorage.setItem(portionsKeyFor(userId), JSON.stringify(portions));
+}
+
+export function getShoppingCustomItems(userId: string): string[] {
+  try {
+    const items = JSON.parse(localStorage.getItem(customItemsKeyFor(userId)) ?? '[]') as unknown;
+    return Array.isArray(items) ? items.filter((item): item is string => typeof item === 'string' && item.trim().length > 0) : [];
+  } catch { return []; }
+}
+
+export function saveShoppingCustomItems(userId: string, items: string[]) {
+  localStorage.setItem(customItemsKeyFor(userId), JSON.stringify([...new Set(items.map((item) => item.trim()).filter(Boolean))]));
 }

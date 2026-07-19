@@ -16,22 +16,32 @@ export default function DashboardPage() {
   const today = nutritionDay();
   const todayWaterMl = waterEntryDay === today ? waterConsumedMl : 0;
   const todayEntries = entries.filter((entry) => entry.date === today);
-  const total = sumMacros(todayEntries);
+  const consumedTodayEntries = todayEntries.filter((entry) => entry.isConsumed);
+  const total = sumMacros(consumedTodayEntries);
   const remaining = Math.max(goals.calories - total.calories, 0);
-  const dinnerMissing = !todayEntries.some((entry) => entry.mealType === 'Jantar');
+  const dinnerMissing = !consumedTodayEntries.some((entry) => entry.mealType === 'Jantar');
   const normaliseIngredient = (value: string) => value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   const dislikedIngredients = profile.dislikedIngredients.map(normaliseIngredient).filter(Boolean);
   const hasDislikedIngredient = (ingredients: string[]) => ingredients.some((ingredient) => dislikedIngredients.some((disliked) => normaliseIngredient(ingredient).includes(disliked) || disliked.includes(normaliseIngredient(ingredient))));
   const fourWeeksAgo = new Date(`${today}T12:00:00`); fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
   const recentCutoff = `${fourWeeksAgo.getFullYear()}-${String(fourWeeksAgo.getMonth() + 1).padStart(2, '0')}-${String(fourWeeksAgo.getDate()).padStart(2, '0')}`;
-  const recentlyConsumedRecipeIds = new Set(entries.filter((entry) => entry.recipeId && entry.date >= recentCutoff && entry.date <= today).map((entry) => entry.recipeId));
+  const recentlyConsumedRecipeIds = new Set(entries.filter((entry) => entry.isConsumed && entry.recipeId && entry.date >= recentCutoff && entry.date <= today).map((entry) => entry.recipeId));
   const userRatings = new Map(recipeReviews.filter((review) => review.userId === profile.userId).map((review) => [review.recipeId, review.rating]));
+  const averageRatings = new Map(recipes.map((recipe) => {
+    const ratings = recipeReviews.filter((review) => review.recipeId === recipe.id);
+    return [recipe.id, ratings.length ? ratings.reduce((sum, review) => sum + review.rating, 0) / ratings.length : 0];
+  }));
   const suggestions = dinnerMissing ? recipes.filter((recipe) => recipe.category === 'Almoço/Jantar' && !recentlyConsumedRecipeIds.has(recipe.id) && !hasDislikedIngredient([...recipe.ingredients, ...recipe.ingredientsEn])).map((recipe) => {
     const macroScore = Math.abs(Math.max(goals.protein - total.protein, 0) - recipe.protein) / Math.max(goals.protein, 1)
       + Math.abs(Math.max(goals.carbs - total.carbs, 0) - recipe.carbs) / Math.max(goals.carbs, 1)
       + Math.abs(Math.max(goals.fat - total.fat, 0) - recipe.fat) / Math.max(goals.fat, 1);
     const calorieScore = Math.abs(remaining - recipe.calories) / Math.max(goals.calories, 1);
-    return { recipe, score: macroScore + calorieScore - (userRatings.get(recipe.id) ?? 0) * 0.08 };
+    const ownRating = userRatings.get(recipe.id) ?? 0;
+    const averageRating = averageRatings.get(recipe.id) ?? 0;
+    const reasons = [t('Compatível com os teus ingredientes a evitar.'), t('Não a consumiste nas últimas 4 semanas.')];
+    if (goals.protein > total.protein && recipe.protein >= 20) reasons.push(t('Ajuda a atingir a proteína que te falta hoje.'));
+    if (averageRating >= 4) reasons.push(t('Bem avaliada ({{rating}}/5).', { rating: averageRating.toFixed(1) }));
+    return { recipe, score: macroScore + calorieScore - ownRating * 0.08, reasons };
   }).sort((a, b) => a.score - b.score).slice(0, 3) : [];
   const waterProgress = Math.min((todayWaterMl / profile.waterGoalMl) * 100, 100);
   const updateWater = async (amountMl: number) => {
@@ -97,10 +107,10 @@ export default function DashboardPage() {
       </section>
 
       <section className="card mt-6 p-7">
-        <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold">{t('Refeições de hoje')}</h2><p className="mt-1 text-sm text-stone-500">{todayEntries.length ? t('{{count}} registo(s)', { count: todayEntries.length }) : t('Ainda não registaste nenhuma refeição.')}</p></div><Link to="/diario" className="flex items-center gap-1 text-sm font-bold text-leaf-600">{t('Ver diário')} <ArrowRight size={16} /></Link></div>
-        {todayEntries.length === 0 ? <div className="mt-6 rounded-2xl border border-dashed border-stone-300 p-8 text-center text-stone-400">{t('Pesquisa uma receita para começares o teu dia.')}</div> : <div className="mt-6 divide-y divide-stone-100">{todayEntries.slice(-4).reverse().map((entry) => <div key={entry.id} className="flex items-center justify-between py-4"><div><p className="font-bold">{i18n.language.startsWith('en') && entry.recipeNameEn ? entry.recipeNameEn : entry.recipeName}</p><p className="text-sm text-stone-400">{t(entry.mealType)} · {t('{{count}} porção(ões)', { count: entry.portions })}</p></div><span className="font-bold">{entry.calories} kcal</span></div>)}</div>}
+          <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold">{t('Refeições de hoje')}</h2><p className="mt-1 text-sm text-stone-500">{consumedTodayEntries.length ? t('{{count}} registo(s)', { count: consumedTodayEntries.length }) : t('Ainda não registaste nenhuma refeição.')}</p></div><Link to="/diario" className="flex items-center gap-1 text-sm font-bold text-leaf-600">{t('Ver diário')} <ArrowRight size={16} /></Link></div>
+        {consumedTodayEntries.length === 0 ? <div className="mt-6 rounded-2xl border border-dashed border-stone-300 p-8 text-center text-stone-400">{t('Pesquisa uma receita para começares o teu dia.')}</div> : <div className="mt-6 divide-y divide-stone-100">{consumedTodayEntries.slice(-4).reverse().map((entry) => <div key={entry.id} className="flex items-center justify-between py-4"><div><p className="font-bold">{i18n.language.startsWith('en') && entry.recipeNameEn ? entry.recipeNameEn : entry.recipeName}</p><p className="text-sm text-stone-400">{t(entry.mealType)} · {t('{{count}} porção(ões)', { count: entry.portions })}</p></div><span className="font-bold">{entry.calories} kcal</span></div>)}</div>}
       </section>
-      {dinnerMissing && suggestions.length > 0 && <section className="card mt-6 p-7"><div className="flex items-start gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-leaf-600/15 text-leaf-700"><Sparkles size={21} /></div><div><h2 className="text-xl font-bold">{t('Sugestões para o jantar')}</h2><p className="mt-1 text-sm text-stone-400">{t('Receitas escolhidas com base no que falta para os teus objetivos de hoje.')}</p></div></div><div className="mt-6 grid gap-3 md:grid-cols-3">{suggestions.map(({ recipe }) => <Link key={recipe.id} to={`/receitas/${recipe.id}`} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-leaf-500/40 hover:bg-white/[0.06]"><p className="font-bold">{recipeName(recipe, i18n.language)}</p><p className="mt-2 text-sm text-stone-400">{Math.round(recipe.calories)} kcal · P {Math.round(recipe.protein)}g · C {Math.round(recipe.carbs)}g · G {Math.round(recipe.fat)}g</p><span className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-leaf-700">{t('Ver receita')} <ArrowRight size={15} /></span></Link>)}</div></section>}
+      {dinnerMissing && suggestions.length > 0 && <section className="card mt-6 p-7"><div className="flex items-start gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-leaf-600/15 text-leaf-700"><Sparkles size={21} /></div><div><h2 className="text-xl font-bold">{t('Sugestões para o jantar')}</h2><p className="mt-1 text-sm text-stone-400">{t('Receitas escolhidas com base no que falta para os teus objetivos de hoje.')}</p></div></div><div className="mt-6 grid gap-3 md:grid-cols-3">{suggestions.map(({ recipe, reasons }) => <Link key={recipe.id} to={`/receitas/${recipe.id}`} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-leaf-500/40 hover:bg-white/[0.06]"><p className="font-bold">{recipeName(recipe, i18n.language)}</p><p className="mt-2 text-sm text-stone-400">{Math.round(recipe.calories)} kcal · P {Math.round(recipe.protein)}g · C {Math.round(recipe.carbs)}g · G {Math.round(recipe.fat)}g</p><div className="mt-3 flex flex-wrap gap-1.5">{reasons.map((reason) => <span key={reason} className="rounded-full bg-leaf-500/10 px-2 py-1 text-[10px] font-semibold text-leaf-600">{reason}</span>)}</div><span className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-leaf-700">{t('Ver receita')} <ArrowRight size={15} /></span></Link>)}</div></section>}
     </div>
   );
 }

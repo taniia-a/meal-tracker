@@ -57,7 +57,7 @@ interface MealContextValue {
     mealType: MealType,
     portions: number,
     date: string,
-  ) => Promise<void>;
+  ) => Promise<MealEntry>;
   addManualMeal: (meal: ManualMealInput) => Promise<void>;
   updateManualMeal: (entryId: string, meal: ManualMealInput) => Promise<void>;
   updateMeal: (
@@ -68,6 +68,7 @@ interface MealContextValue {
     date: string,
   ) => Promise<void>;
   moveMeal: (entryId: string, date: string, mealType: MealType) => Promise<void>;
+  setMealConsumed: (entryId: string, isConsumed: boolean) => Promise<MealEntry>;
   replaceMeal: (entryId: string, recipe: Recipe, portions: number) => Promise<void>;
   removeMeal: (id: string) => Promise<void>;
 }
@@ -267,7 +268,7 @@ export function MealProvider({
       setRecipes(loadedRecipes);
       const entryResult = await neonClient
         .from("meal_entries")
-        .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat")
+        .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat")
         .order("created_at", { ascending: true });
       if (!isActive) return;
       if (entryResult.error) {
@@ -610,16 +611,24 @@ export function MealProvider({
         meal_date: date,
         meal_type: mealType,
         portions,
-        is_consumed: date <= localToday(),
+        is_consumed: false,
+        recipe_name_snapshot: recipe.name,
+        recipe_name_en_snapshot: recipe.nameEn,
+        recipe_calories_snapshot: recipe.calories,
+        recipe_protein_snapshot: recipe.protein,
+        recipe_carbs_snapshot: recipe.carbs,
+        recipe_fat_snapshot: recipe.fat,
       })
-      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed")
+      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot")
       .single();
     if (error || !data)
       throw new Error(
         error?.message ||
           "A base de dados não confirmou o registo da refeição.",
       );
-    setEntries((current) => [...current, mapMealEntry(data, recipe)]);
+    const entry = mapMealEntry(data, recipe);
+    setEntries((current) => [...current, entry]);
+    return entry;
   };
 
   const addManualMeal = async (meal: ManualMealInput) => {
@@ -638,7 +647,7 @@ export function MealProvider({
         manual_carbs: meal.carbs,
         manual_fat: meal.fat,
       })
-      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat")
+      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat")
       .single();
     if (error || !data) throw new Error(error?.message || "Não foi possível registar a refeição.");
     setEntries((current) => [...current, mapManualMealEntry(data)]);
@@ -659,7 +668,7 @@ export function MealProvider({
         manual_fat: meal.fat,
       })
       .eq("id", entryId)
-      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat")
+      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat")
       .single();
     if (error || !data) throw new Error(error?.message || "Não foi possível guardar as alterações.");
     const updated = mapManualMealEntry(data);
@@ -674,16 +683,17 @@ export function MealProvider({
     date: string,
   ) => {
     if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const currentEntry = entries.find((item) => item.id === entryId);
     const { data, error } = await neonClient
       .from("meal_entries")
       .update({
         meal_date: date,
         meal_type: mealType,
         portions,
-        is_consumed: date <= localToday(),
+        is_consumed: currentEntry?.isConsumed ?? false,
       })
       .eq("id", entryId)
-      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed")
+      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot")
       .single();
     if (error || !data)
       throw new Error(
@@ -699,10 +709,29 @@ export function MealProvider({
     if (!neonClient) throw new Error("O cliente Neon não está configurado.");
     const { error } = await neonClient
       .from("meal_entries")
-      .update({ meal_date: date, meal_type: mealType, is_consumed: date <= localToday() })
+      .update({ meal_date: date, meal_type: mealType })
       .eq("id", entryId);
     if (error) throw new Error(error.message);
-    setEntries((current) => current.map((entry) => entry.id === entryId ? { ...entry, date, mealType, isConsumed: date <= localToday() } : entry));
+    setEntries((current) => current.map((entry) => entry.id === entryId ? { ...entry, date, mealType } : entry));
+  };
+
+  const setMealConsumed = async (entryId: string, isConsumed: boolean) => {
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const { data, error } = await neonClient
+      .from("meal_entries")
+      .update({ is_consumed: isConsumed })
+      .eq("id", entryId)
+      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat")
+      .single();
+    if (error || !data) throw new Error(error?.message || "Não foi possível atualizar o estado da refeição.");
+    const existing = entries.find((entry) => entry.id === entryId);
+    if (!existing) throw new Error("Não foi possível encontrar a refeição.");
+    const updated = existing.isManual ? mapManualMealEntry(data) : (() => {
+      const recipe = recipes.find((item) => item.id === data.recipe_id);
+      return recipe ? mapMealEntry(data, recipe) : { ...existing, isConsumed };
+    })();
+    setEntries((current) => current.map((entry) => entry.id === entryId ? updated : entry));
+    return updated;
   };
 
   const replaceMeal = async (entryId: string, recipe: Recipe, portions: number) => {
@@ -711,9 +740,9 @@ export function MealProvider({
     if (!entry) throw new Error("Não foi possível encontrar a refeição planeada.");
     const { data, error } = await neonClient
       .from("meal_entries")
-      .update({ recipe_id: recipe.id, portions })
+      .update({ recipe_id: recipe.id, portions, recipe_name_snapshot: recipe.name, recipe_name_en_snapshot: recipe.nameEn, recipe_calories_snapshot: recipe.calories, recipe_protein_snapshot: recipe.protein, recipe_carbs_snapshot: recipe.carbs, recipe_fat_snapshot: recipe.fat })
       .eq("id", entryId)
-      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed")
+      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot")
       .single();
     if (error || !data) throw new Error(error?.message || "Não foi possível trocar a receita.");
     setEntries((current) => current.map((item) => item.id === entryId ? mapMealEntry(data, recipe) : item));
@@ -793,6 +822,7 @@ export function MealProvider({
         updateManualMeal,
         updateMeal,
         moveMeal,
+        setMealConsumed,
         replaceMeal,
         removeMeal,
       }}
@@ -869,6 +899,12 @@ interface MealEntryRow {
   meal_type: MealType;
   portions: number | string;
   is_consumed: boolean;
+  recipe_name_snapshot?: string | null;
+  recipe_name_en_snapshot?: string | null;
+  recipe_calories_snapshot?: number | string | null;
+  recipe_protein_snapshot?: number | string | null;
+  recipe_carbs_snapshot?: number | string | null;
+  recipe_fat_snapshot?: number | string | null;
   manual_name?: string | null;
   manual_calories?: number | string | null;
   manual_protein?: number | string | null;
@@ -903,21 +939,23 @@ function mapWaterEntry(row: WaterEntryRow): WaterEntry {
 
 function mapMealEntry(row: MealEntryRow, recipe: Recipe): MealEntry {
   const portions = Number(row.portions);
+  const snapshot = row.recipe_calories_snapshot != null && row.recipe_protein_snapshot != null && row.recipe_carbs_snapshot != null && row.recipe_fat_snapshot != null;
+  const nutrition = snapshot ? { calories: Number(row.recipe_calories_snapshot), protein: Number(row.recipe_protein_snapshot), carbs: Number(row.recipe_carbs_snapshot), fat: Number(row.recipe_fat_snapshot) } : recipe;
   const scale = (value: number) => Math.round(value * portions * 10) / 10;
   return {
     id: row.id,
     recipeId: row.recipe_id,
-    recipeName: recipe.name,
-    recipeNameEn: recipe.nameEn,
+    recipeName: row.recipe_name_snapshot ?? recipe.name,
+    recipeNameEn: row.recipe_name_en_snapshot ?? recipe.nameEn,
     date: row.meal_date,
     mealType: row.meal_type,
     portions,
-    isConsumed: row.meal_date <= localToday(),
+    isConsumed: Boolean(row.is_consumed),
     isManual: false,
-    calories: scale(recipe.calories),
-    protein: scale(recipe.protein),
-    carbs: scale(recipe.carbs),
-    fat: scale(recipe.fat),
+    calories: scale(nutrition.calories),
+    protein: scale(nutrition.protein),
+    carbs: scale(nutrition.carbs),
+    fat: scale(nutrition.fat),
   };
 }
 
@@ -930,7 +968,7 @@ function mapManualMealEntry(row: MealEntryRow): MealEntry {
     date: row.meal_date,
     mealType: row.meal_type,
     portions: 1,
-    isConsumed: row.meal_date <= localToday(),
+    isConsumed: Boolean(row.is_consumed),
     isManual: true,
     calories: Number(row.manual_calories ?? 0),
     protein: Number(row.manual_protein ?? 0),

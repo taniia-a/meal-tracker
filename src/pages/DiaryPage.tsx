@@ -1,6 +1,7 @@
-import { Bot, ChevronLeft, ChevronRight, Droplets, Pencil, Plus, RefreshCw, Search, ShoppingCart, Sparkles, Trash2, X } from 'lucide-react';
+import { Bot, CheckCircle2, ChevronLeft, ChevronRight, Droplets, Pencil, Plus, RefreshCw, Search, ShoppingCart, Sparkles, Trash2, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import AddMealModal from '../components/AddMealModal';
 import { sumMacros } from '../components/NutritionProgress';
 import { useMeals } from '../store/MealContext';
@@ -9,6 +10,7 @@ import { addShoppingEntryIds } from '../lib/shopping-list';
 import { formatLocalDate, nutritionDay } from '../lib/nutrition-day';
 import { recipeName } from '../lib/recipe-language';
 import { getAuthToken } from '../lib/auth';
+import RecipeReviewPrompt from '../components/RecipeReviewPrompt';
 
 const types: MealType[] = ['Pequeno-almoço', 'Almoço', 'Lanche', 'Jantar'];
 const formatDateValue = formatLocalDate;
@@ -24,7 +26,7 @@ function weekFrom(dateValue: string) {
 }
 
 export default function DiaryPage() {
-  const { entries, recipes, profile, removeMeal, waterEntries, removeWater, adjustWater } = useMeals();
+  const { entries, recipes, profile, recipeReviews, removeMeal, setMealConsumed, waterEntries, removeWater, adjustWater } = useMeals();
   const { t, i18n } = useTranslation();
   const [date, setDate] = useState(today);
   const [view, setView] = useState<'day' | 'week'>('day');
@@ -37,6 +39,8 @@ export default function DiaryPage() {
   const [deleteError, setDeleteError] = useState('');
   const [shoppingMessage, setShoppingMessage] = useState('');
   const [isWeekPlanOpen, setIsWeekPlanOpen] = useState(false);
+  const [isDayPlanOpen, setIsDayPlanOpen] = useState(false);
+  const [reviewRecipe, setReviewRecipe] = useState<Recipe | null>(null);
   const daily = entries.filter((entry) => entry.date === date);
   const dailyWater = waterEntries.filter((entry) => entry.date === date);
   const total = sumMacros(daily);
@@ -52,6 +56,16 @@ export default function DiaryPage() {
     setDeleteError('');
     try { await removeWater(entryId); }
     catch (error) { setDeleteError(error instanceof Error ? error.message : t('Não foi possível apagar o registo de água.')); }
+  };
+  const markConsumed = async (meal: MealEntry) => {
+    setDeleteError('');
+    try {
+      await setMealConsumed(meal.id, true);
+      if (!meal.isManual && meal.recipeId && !recipeReviews.some((review) => review.recipeId === meal.recipeId && review.userId === profile.userId)) {
+        const recipe = recipes.find((item) => item.id === meal.recipeId);
+        if (recipe) setReviewRecipe(recipe);
+      }
+    } catch (error) { setDeleteError(error instanceof Error ? error.message : t('Não foi possível atualizar o estado da refeição.')); }
   };
 
   const moveWeek = (amount: number) => {
@@ -75,14 +89,14 @@ export default function DiaryPage() {
   const entryName = (entry: MealEntry) => i18n.language.startsWith('en') && entry.recipeNameEn ? entry.recipeNameEn : entry.recipeName;
 
   return <div className="mx-auto max-w-7xl">
-    <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><p className="font-semibold text-leaf-600">{t('Histórico')}</p><h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">{t('Diário de refeições')}</h1><p className="mt-2 text-stone-500">{t('Consulta e gere tudo o que registaste.')}</p></div><div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end"><button onClick={() => setIsRecipePickerOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-leaf-600 px-4 py-3 text-sm font-bold text-white"><Search size={18} /> {t('Pesquisar receitas')}</button><button onClick={() => setIsManualMealModalOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-leaf-500/40 px-4 py-3 text-sm font-bold text-leaf-600 hover:bg-leaf-500/10"><Plus size={18} /> {t('Refeição manual')}</button><div className="flex rounded-2xl border border-white/10 bg-white/5 p-1"><button onClick={() => setView('day')} className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold ${view === 'day' ? 'bg-leaf-600 text-white' : 'text-stone-400'}`}>{t('Dia')}</button><button onClick={() => setView('week')} className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold ${view === 'week' ? 'bg-leaf-600 text-white' : 'text-stone-400'}`}>{t('Semana')}</button></div>{view === 'day' && <div className="flex items-center gap-2"><button type="button" onClick={() => moveDay(-1)} className="rounded-xl border border-white/10 p-3 hover:bg-white/5" aria-label={t('Dia anterior')}><ChevronLeft size={19} /></button><label className="w-44"><input className="input !w-44" type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><button type="button" onClick={() => moveDay(1)} className="rounded-xl border border-white/10 p-3 hover:bg-white/5" aria-label={t('Dia seguinte')}><ChevronRight size={19} /></button></div>}</div></div>
+    <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><p className="font-semibold text-leaf-600">{t('Histórico')}</p><h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">{t('Diário de refeições')}</h1><p className="mt-2 text-stone-500">{t('Consulta e gere tudo o que registaste.')}</p></div><div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end"><button onClick={() => setIsRecipePickerOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-leaf-600 px-4 py-3 text-sm font-bold text-white"><Search size={18} /> {t('Pesquisar receitas')}</button><button onClick={() => setIsManualMealModalOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-leaf-500/40 px-4 py-3 text-sm font-bold text-leaf-600 hover:bg-leaf-500/10"><Plus size={18} /> {t('Refeição manual')}</button>{view === 'day' && <button onClick={() => setIsDayPlanOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-purple-400/40 px-4 py-3 text-sm font-bold text-purple-200 hover:bg-purple-500/10"><Sparkles size={18} /> {t('Sugerir dia')}</button>}<div className="flex rounded-2xl border border-white/10 bg-white/5 p-1"><button onClick={() => setView('day')} className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold ${view === 'day' ? 'bg-leaf-600 text-white' : 'text-stone-400'}`}>{t('Dia')}</button><button onClick={() => setView('week')} className={`flex-1 rounded-xl px-4 py-2 text-sm font-bold ${view === 'week' ? 'bg-leaf-600 text-white' : 'text-stone-400'}`}>{t('Semana')}</button></div>{view === 'day' && <div className="flex items-center gap-2"><button type="button" onClick={() => moveDay(-1)} className="rounded-xl border border-white/10 p-3 hover:bg-white/5" aria-label={t('Dia anterior')}><ChevronLeft size={19} /></button><label className="w-44"><input className="input !w-44" type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><button type="button" onClick={() => moveDay(1)} className="rounded-xl border border-white/10 p-3 hover:bg-white/5" aria-label={t('Dia seguinte')}><ChevronRight size={19} /></button></div>}</div></div>
 
     {deleteError && <p role="alert" className="mt-5 rounded-2xl bg-rose-500/10 p-4 text-sm font-semibold text-rose-300">{deleteError}</p>}{shoppingMessage && <p role="status" className="mt-5 rounded-2xl bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-300">{shoppingMessage}</p>}
 
     {view === 'day' ? <>
       <p className="mt-8 text-sm font-bold text-stone-400">{t('Totais previstos')}</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4"><Summary value={Math.round(total.calories)} label={t('Calorias')} unit="kcal" /><Summary value={Math.round(total.protein)} label={t('Proteína')} unit="g" /><Summary value={Math.round(total.carbs)} label={t('Hidratos')} unit="g" /><Summary value={Math.round(total.fat)} label={t('Gordura')} unit="g" /></div>
       <WaterLog date={date} entries={dailyWater} onAdd={() => setIsWaterModalOpen(true)} onDelete={deleteWaterEntry} />
-      <div className="mt-6 space-y-4">{types.map((type) => { const meals = daily.filter((entry) => entry.mealType === type); return <section key={type} className="card p-6"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">{t(type)}</h2><span className="text-sm font-semibold text-stone-400">{Math.round(sumMacros(meals).calories)} kcal</span></div>{meals.length === 0 ? <p className="mt-4 rounded-2xl bg-white/5 p-4 text-sm text-stone-400">{t('Sem registos.')}</p> : <div className="mt-3 divide-y divide-white/10">{meals.map((meal) => { const consumed = meal.date <= today; return <div key={meal.id} className="flex items-center justify-between gap-3 py-3"><div><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{entryName(meal)}</p>{meal.isManual && <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase text-sky-300">{t('Manual')}</span>}<span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${consumed ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'}`}>{t(consumed ? 'Consumida' : 'Planeada')}</span></div><p className="text-xs text-stone-400">{meal.isManual ? t('Valores introduzidos manualmente.') : t('{{count}} porção(ões)', { count: meal.portions })} · P {meal.protein}g · C {meal.carbs}g · F {meal.fat}g</p></div><div className="flex items-center gap-2"><span className="mr-1 text-sm font-bold">{meal.calories} kcal</span><button onClick={() => meal.isManual ? setEditingManual(meal) : setEditing(meal)} aria-label={t('Editar registo')} className="rounded-xl p-2 text-stone-400 hover:bg-leaf-500/10 hover:text-leaf-700"><Pencil size={17} /></button><button onClick={() => deleteEntry(meal.id)} aria-label={t('Remover refeição')} className="rounded-xl p-2 text-stone-400 hover:bg-rose-500/10 hover:text-rose-400"><Trash2 size={17} /></button></div></div>; })}</div>}</section>; })}</div>
+      <div className="mt-6 space-y-4">{types.map((type) => { const meals = daily.filter((entry) => entry.mealType === type); return <section key={type} className="card p-6"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">{t(type)}</h2><span className="text-sm font-semibold text-stone-400">{Math.round(sumMacros(meals).calories)} kcal</span></div>{meals.length === 0 ? <p className="mt-4 rounded-2xl bg-white/5 p-4 text-sm text-stone-400">{t('Sem registos.')}</p> : <div className="mt-3 divide-y divide-white/10">{meals.map((meal) => { const consumed = meal.isConsumed; return <div key={meal.id} className="flex items-center justify-between gap-3 py-3"><div><div className="flex flex-wrap items-center gap-2">{meal.recipeId ? <Link to={`/receitas/${meal.recipeId}`} className="font-semibold hover:text-leaf-600 hover:underline">{entryName(meal)}</Link> : <p className="font-semibold">{entryName(meal)}</p>}{meal.isManual && <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase text-sky-300">{t('Manual')}</span>}<span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${consumed ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'}`}>{t(consumed ? 'Consumida' : 'Planeada')}</span></div><p className="text-xs text-stone-400">{meal.isManual ? t('Valores introduzidos manualmente.') : t('{{count}} porção(ões)', { count: meal.portions })} · P {meal.protein}g · C {meal.carbs}g · F {meal.fat}g</p></div><div className="flex items-center gap-2"><span className="mr-1 text-sm font-bold">{meal.calories} kcal</span>{!consumed && <button onClick={() => void markConsumed(meal)} aria-label={t('Marcar como consumida')} className="rounded-xl p-2 text-amber-300 hover:bg-emerald-500/10 hover:text-emerald-300"><CheckCircle2 size={17} /></button>}<button onClick={() => meal.isManual ? setEditingManual(meal) : setEditing(meal)} aria-label={t('Editar registo')} className="rounded-xl p-2 text-stone-400 hover:bg-leaf-500/10 hover:text-leaf-700"><Pencil size={17} /></button><button onClick={() => deleteEntry(meal.id)} aria-label={t('Remover refeição')} className="rounded-xl p-2 text-stone-400 hover:bg-rose-500/10 hover:text-rose-400"><Trash2 size={17} /></button></div></div>; })}</div>}</section>; })}</div>
     </> : <WeeklyView week={week} entries={entries} locale={locale} today={today} onPrevious={() => moveWeek(-1)} onNext={() => moveWeek(1)} onCurrent={() => setDate(today)} onOpenDay={openDay} onAddToShoppingList={addWeekToShoppingList} onCreatePlan={() => setIsWeekPlanOpen(true)} />}
 
     {isRecipePickerOpen && <RecipePicker recipes={recipes} onClose={() => setIsRecipePickerOpen(false)} onSelect={(recipe) => { setAdding(recipe); setIsRecipePickerOpen(false); }} />}
@@ -92,6 +106,8 @@ export default function DiaryPage() {
     {adding && <AddMealModal recipe={adding} initialDate={date} onClose={() => setAdding(null)} />}
     {editing && (() => { const recipe = recipes.find((item) => item.id === editing.recipeId); return recipe ? <AddMealModal recipe={recipe} entry={editing} onClose={() => setEditing(null)} /> : null; })()}
     {isWeekPlanOpen && <WeeklyPlanModal week={week} onClose={() => setIsWeekPlanOpen(false)} />}
+    {isDayPlanOpen && <DailyPlanModal date={date} onClose={() => setIsDayPlanOpen(false)} />}
+    {reviewRecipe && <RecipeReviewPrompt recipe={reviewRecipe} onClose={() => setReviewRecipe(null)} />}
   </div>;
 }
 
@@ -206,6 +222,52 @@ function WeeklyPlanModal({ week, onClose }: { week: string[]; onClose: () => voi
     finally { setSaving(false); }
   };
   return <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-ink/50 p-5 backdrop-blur-sm"><section className="card my-5 w-full max-w-2xl p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-semibold text-purple-300">{t('Planeamento automático')}</p><h2 className="mt-1 text-2xl font-extrabold">{t('Gerar plano da semana')}</h2><p className="mt-2 text-sm leading-relaxed text-stone-400">{t('Vamos preencher apenas refeições futuras em falta, com base nas tuas metas e preferências.')}</p></div><button type="button" onClick={onClose} className="rounded-xl p-2 hover:bg-white/5" aria-label={t('Cancelar')}><X /></button></div><div className="mt-5 rounded-2xl border border-purple-400/20 bg-purple-500/10 p-4 text-sm text-purple-100"><p className="font-bold">{t('{{count}} refeições serão planeadas', { count: plan.length })}</p><p className="mt-1 text-xs text-stone-300">{t('Não alteramos refeições que já existam e ignoramos ingredientes a evitar.')}</p></div>{plan.length ? <div className="mt-5 max-h-72 space-y-2 overflow-y-auto pr-1">{plan.map((item, index) => <div key={`${item.date}-${item.mealType}-${index}`} className="flex items-center justify-between gap-4 rounded-xl bg-white/5 p-3"><div><p className="font-bold">{i18n.language.startsWith('en') && item.recipe.nameEn ? item.recipe.nameEn : item.recipe.name}</p><p className="mt-1 text-xs text-stone-400">{parseDateValue(item.date).toLocaleDateString(i18n.language.startsWith('en') ? 'en-GB' : 'pt-PT', { weekday: 'short', day: 'numeric', month: 'short' })} · {t(item.mealType)}</p></div><p className="shrink-0 text-sm font-semibold text-stone-300">{item.portions}× · {Math.round(item.recipe.calories * item.portions)} kcal</p></div>)}</div> : <p className="mt-5 rounded-2xl bg-white/5 p-5 text-sm text-stone-400">{t('Não há refeições futuras em falta nesta semana ou não encontrámos receitas compatíveis.')}</p>}{error && <p role="alert" className="mt-4 text-sm font-semibold text-rose-300">{error}</p>}<div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" onClick={() => setVersion((current) => current + 1)} disabled={saving} className="rounded-2xl border border-white/15 px-5 py-3 font-bold hover:bg-white/5 disabled:opacity-60">{t('Gerar outra opção')}</button><button type="button" onClick={() => void save()} disabled={saving || !plan.length} className="rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white disabled:opacity-60">{saving ? t('A guardar...') : t('Criar plano')}</button></div></section></div>;
+}
+
+function DailyPlanModal({ date, onClose }: { date: string; onClose: () => void }) {
+  const { recipes, entries, goals, profile, recipeReviews, addMeal } = useMeals();
+  const { t, i18n } = useTranslation();
+  const [version, setVersion] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const plan = useMemo(() => buildDailyPlan(date, recipes, entries, goals, profile.dislikedIngredients, profile.userId, recipeReviews, version), [date, recipes, entries, goals, profile.dislikedIngredients, profile.userId, recipeReviews, version]);
+  const save = async () => { setSaving(true); setError(''); try { for (const item of plan) await addMeal(item.recipe, item.mealType, item.portions, item.date); onClose(); } catch (reason) { setError(reason instanceof Error ? reason.message : t('Não foi possível gerar o plano.')); } finally { setSaving(false); } };
+  return <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-ink/50 p-5 backdrop-blur-sm"><section className="card my-5 w-full max-w-xl p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-semibold text-purple-300">{t('Planeamento automático')}</p><h2 className="mt-1 text-2xl font-extrabold">{t('Sugerir dia')}</h2><p className="mt-2 text-sm text-stone-400">{t('Vamos preencher apenas as refeições em falta deste dia, com base nas tuas metas e preferências.')}</p></div><button type="button" onClick={onClose} className="rounded-xl p-2 hover:bg-white/5" aria-label={t('Cancelar')}><X /></button></div><div className="mt-5 rounded-2xl border border-purple-400/20 bg-purple-500/10 p-4 text-sm text-purple-100"><p className="font-bold">{t('{{count}} refeições serão planeadas', { count: plan.length })}</p><p className="mt-1 text-xs text-stone-300">{t('Não alteramos refeições que já existam e ignoramos ingredientes a evitar.')}</p></div>{plan.length ? <div className="mt-5 space-y-2">{plan.map((item) => <div key={item.mealType} className="flex items-center justify-between gap-4 rounded-xl bg-white/5 p-3"><div><p className="font-bold">{i18n.language.startsWith('en') && item.recipe.nameEn ? item.recipe.nameEn : item.recipe.name}</p><p className="mt-1 text-xs text-stone-400">{t(item.mealType)}</p></div><p className="shrink-0 text-sm font-semibold text-stone-300">{item.portions}× · {Math.round(item.recipe.calories * item.portions)} kcal</p></div>)}</div> : <p className="mt-5 rounded-2xl bg-white/5 p-5 text-sm text-stone-400">{t('Não há refeições em falta neste dia ou não encontrámos receitas compatíveis.')}</p>}{error && <p role="alert" className="mt-4 text-sm font-semibold text-rose-300">{error}</p>}<div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" onClick={() => setVersion((current) => current + 1)} disabled={saving || !plan.length} className="rounded-2xl border border-white/15 px-5 py-3 font-bold hover:bg-white/5 disabled:opacity-60">{t('Gerar outra opção')}</button><button type="button" onClick={() => void save()} disabled={saving || !plan.length} className="rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white disabled:opacity-60">{saving ? t('A guardar...') : t('Criar plano')}</button></div></section></div>;
+}
+
+function buildDailyPlan(date: string, recipes: Recipe[], entries: MealEntry[], goals: NutritionGoals, dislikedIngredients: string[], userId: string, reviews: ReturnType<typeof useMeals>['recipeReviews'], version: number): PlannedMeal[] {
+  if (date < nutritionDay()) return [];
+  const normalise = (value: string) => value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const dislikes = dislikedIngredients.map(normalise).filter(Boolean);
+  const categoryMatches = (recipe: Recipe, mealType: MealType) => mealType === 'Pequeno-almoço' ? recipe.category === 'Pequeno Almoço' : mealType === 'Lanche' ? ['Snacks', 'Sobremesas'].includes(recipe.category) : recipe.category === 'Almoço/Jantar';
+  const shares: Record<MealType, number> = { 'Pequeno-almoço': .25, 'Almoço': .35, 'Lanche': .15, 'Jantar': .25 };
+  const dayEntries = entries.filter((entry) => entry.date === date);
+  const missing = types.filter((type) => !dayEntries.some((entry) => entry.mealType === type));
+  const todayTotals = sumMacros(dayEntries);
+  const cutoffDate = new Date(`${nutritionDay()}T12:00:00`); cutoffDate.setDate(cutoffDate.getDate() - 28);
+  const recent = new Set(entries.filter((entry) => entry.recipeId && entry.date >= formatDateValue(cutoffDate) && entry.date <= nutritionDay()).map((entry) => entry.recipeId));
+  const planned = new Set(entries.filter((entry) => entry.recipeId && !entry.isConsumed && entry.date >= nutritionDay()).map((entry) => entry.recipeId));
+  const used = new Set(dayEntries.map((entry) => entry.recipeId).filter(Boolean));
+  const ratings = new Map(reviews.filter((review) => review.userId === userId).map((review) => [review.recipeId, review.rating]));
+  let remainingShare = missing.reduce((sum, type) => sum + shares[type], 0);
+  let remaining = { calories: Math.max(0, goals.calories - todayTotals.calories), protein: Math.max(0, goals.protein - todayTotals.protein), carbs: Math.max(0, goals.carbs - todayTotals.carbs), fat: Math.max(0, goals.fat - todayTotals.fat) };
+  return missing.flatMap((mealType) => {
+    const targetShare = shares[mealType] / remainingShare;
+    const target = { calories: remaining.calories * targetShare, protein: remaining.protein * targetShare, carbs: remaining.carbs * targetShare, fat: remaining.fat * targetShare };
+    const choices = recipes.filter((recipe) => {
+      const containsDisliked = [...recipe.ingredients, ...recipe.ingredientsEn].some((ingredient) => dislikes.some((item) => normalise(ingredient).includes(item) || item.includes(normalise(ingredient))));
+      return categoryMatches(recipe, mealType) && recipe.calories > 0 && !recent.has(recipe.id) && !planned.has(recipe.id) && !used.has(recipe.id) && !containsDisliked;
+    }).map((recipe) => {
+      const portions = Math.max(.25, Math.min(4, Math.round(target.calories / recipe.calories * 4) / 4));
+      const score = Math.abs(recipe.protein * portions - target.protein) / Math.max(goals.protein, 1) + Math.abs(recipe.carbs * portions - target.carbs) / Math.max(goals.carbs, 1) + Math.abs(recipe.fat * portions - target.fat) / Math.max(goals.fat, 1) - (ratings.get(recipe.id) ?? 0) * .08;
+      return { recipe, portions, score };
+    }).sort((a, b) => a.score - b.score || ((a.recipe.id.charCodeAt(0) + version) % 7) - ((b.recipe.id.charCodeAt(0) + version) % 7));
+    const choice = choices[0];
+    remainingShare -= shares[mealType];
+    if (!choice) return [];
+    used.add(choice.recipe.id); remaining = { calories: Math.max(0, remaining.calories - choice.recipe.calories * choice.portions), protein: Math.max(0, remaining.protein - choice.recipe.protein * choice.portions), carbs: Math.max(0, remaining.carbs - choice.recipe.carbs * choice.portions), fat: Math.max(0, remaining.fat - choice.recipe.fat * choice.portions) };
+    return [{ date, mealType, recipe: choice.recipe, portions: choice.portions }];
+  });
 }
 
 function buildWeeklyPlan(week: string[], recipes: Recipe[], entries: MealEntry[], goals: NutritionGoals, dislikedIngredients: string[], userId: string, reviews: ReturnType<typeof useMeals>['recipeReviews'], version: number): PlannedMeal[] {

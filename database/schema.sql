@@ -101,6 +101,13 @@ CREATE TABLE IF NOT EXISTS meal_entries (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ALTER TABLE meal_entries ADD COLUMN IF NOT EXISTS is_consumed BOOLEAN NOT NULL DEFAULT TRUE;
+-- Snapshot da receita no momento do registo: alterações futuras à receita não reescrevem o diário.
+ALTER TABLE meal_entries ADD COLUMN IF NOT EXISTS recipe_name_snapshot TEXT;
+ALTER TABLE meal_entries ADD COLUMN IF NOT EXISTS recipe_name_en_snapshot TEXT;
+ALTER TABLE meal_entries ADD COLUMN IF NOT EXISTS recipe_calories_snapshot NUMERIC(9,2);
+ALTER TABLE meal_entries ADD COLUMN IF NOT EXISTS recipe_protein_snapshot NUMERIC(9,2);
+ALTER TABLE meal_entries ADD COLUMN IF NOT EXISTS recipe_carbs_snapshot NUMERIC(9,2);
+ALTER TABLE meal_entries ADD COLUMN IF NOT EXISTS recipe_fat_snapshot NUMERIC(9,2);
 
 CREATE TABLE IF NOT EXISTS recipe_favorites (
   user_id TEXT NOT NULL DEFAULT (auth.user_id()),

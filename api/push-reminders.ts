@@ -14,7 +14,7 @@ function timeMatches(time: string | undefined, hour: number, minute: number) {
   return hour === targetHour && minute >= targetMinute && minute < targetMinute + 5;
 }
 
-export default async function handler(request: Request) {
+export async function pushReminders(request: Request) {
   if (request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) return new Response('Unauthorized', { status: 401 });
   if (!process.env.DATABASE_URL || !process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY || !process.env.VAPID_SUBJECT) return new Response('Push is not configured', { status: 503 });
   let client: pg.Client | undefined;
@@ -53,3 +53,5 @@ export default async function handler(request: Request) {
     await client?.end();
   }
 }
+
+export default { fetch: (request: Request) => pushReminders(request) };

@@ -1,4 +1,4 @@
-const CACHE = 'meal-tracker-shell-v3';
+const CACHE = 'meal-tracker-shell-v4';
 const APP_SHELL = ['/', '/manifest.webmanifest', '/meal-tracker-icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -17,7 +17,15 @@ self.addEventListener('fetch', (event) => {
   // handle their cookies and CORS directly, especially in iOS standalone PWAs.
   if (new URL(event.request.url).origin !== self.location.origin) return;
   if (event.request.mode === 'navigate') {
-    event.respondWith(fetch(event.request).catch(() => caches.match('/')));
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          void caches.open(CACHE).then((cache) => cache.put('/', copy));
+          return response;
+        })
+        .catch(() => caches.match('/')),
+    );
     return;
   }
   event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));

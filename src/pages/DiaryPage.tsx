@@ -1,10 +1,10 @@
-import { Bot, CalendarDays, ChevronLeft, ChevronRight, Droplets, Pencil, Plus, Search, ShoppingCart, Sparkles, Trash2, X } from 'lucide-react';
+import { Bot, CalendarDays, ChevronLeft, ChevronRight, Droplets, Pencil, Plus, RefreshCw, Search, ShoppingCart, Sparkles, Trash2, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AddMealModal from '../components/AddMealModal';
 import { sumMacros } from '../components/NutritionProgress';
 import { useMeals } from '../store/MealContext';
-import { ManualMealInput, MealEntry, MealType, Recipe, WaterEntry } from '../types';
+import { ManualMealInput, MealEntry, MealType, NutritionGoals, Recipe, WaterEntry } from '../types';
 import { addShoppingEntryIds } from '../lib/shopping-list';
 import { formatLocalDate, nutritionDay } from '../lib/nutrition-day';
 import { recipeName } from '../lib/recipe-language';
@@ -36,6 +36,7 @@ export default function DiaryPage() {
   const [isWaterModalOpen, setIsWaterModalOpen] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [shoppingMessage, setShoppingMessage] = useState('');
+  const [isWeekPlanOpen, setIsWeekPlanOpen] = useState(false);
   const daily = entries.filter((entry) => entry.date === date);
   const dailyWater = waterEntries.filter((entry) => entry.date === date);
   const total = sumMacros(daily);
@@ -77,7 +78,7 @@ export default function DiaryPage() {
       <p className="mt-8 text-sm font-bold text-stone-400">{t('Totais previstos')}</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4"><Summary value={Math.round(total.calories)} label={t('Calorias')} unit="kcal" /><Summary value={Math.round(total.protein)} label={t('Proteína')} unit="g" /><Summary value={Math.round(total.carbs)} label={t('Hidratos')} unit="g" /><Summary value={Math.round(total.fat)} label={t('Gordura')} unit="g" /></div>
       <WaterLog date={date} entries={dailyWater} onAdd={() => setIsWaterModalOpen(true)} onDelete={deleteWaterEntry} />
       <div className="mt-6 space-y-4">{types.map((type) => { const meals = daily.filter((entry) => entry.mealType === type); return <section key={type} className="card p-6"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">{t(type)}</h2><span className="text-sm font-semibold text-stone-400">{Math.round(sumMacros(meals).calories)} kcal</span></div>{meals.length === 0 ? <p className="mt-4 rounded-2xl bg-white/5 p-4 text-sm text-stone-400">{t('Sem registos.')}</p> : <div className="mt-3 divide-y divide-white/10">{meals.map((meal) => { const consumed = meal.date <= today; return <div key={meal.id} className="flex items-center justify-between gap-3 py-3"><div><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{entryName(meal)}</p>{meal.isManual && <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase text-sky-300">{t('Manual')}</span>}<span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${consumed ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'}`}>{t(consumed ? 'Consumida' : 'Planeada')}</span></div><p className="text-xs text-stone-400">{meal.isManual ? t('Valores introduzidos manualmente.') : t('{{count}} porção(ões)', { count: meal.portions })} · P {meal.protein}g · C {meal.carbs}g · F {meal.fat}g</p></div><div className="flex items-center gap-2"><span className="mr-1 text-sm font-bold">{meal.calories} kcal</span><button onClick={() => meal.isManual ? setEditingManual(meal) : setEditing(meal)} aria-label={t('Editar registo')} className="rounded-xl p-2 text-stone-400 hover:bg-leaf-500/10 hover:text-leaf-700"><Pencil size={17} /></button><button onClick={() => deleteEntry(meal.id)} aria-label={t('Remover refeição')} className="rounded-xl p-2 text-stone-400 hover:bg-rose-500/10 hover:text-rose-400"><Trash2 size={17} /></button></div></div>; })}</div>}</section>; })}</div>
-    </> : <WeeklyView week={week} entries={entries} locale={locale} today={today} onPrevious={() => moveWeek(-1)} onNext={() => moveWeek(1)} onCurrent={() => setDate(today)} onOpenDay={openDay} onAddToShoppingList={addWeekToShoppingList} />}
+    </> : <WeeklyView week={week} entries={entries} locale={locale} today={today} onPrevious={() => moveWeek(-1)} onNext={() => moveWeek(1)} onCurrent={() => setDate(today)} onOpenDay={openDay} onAddToShoppingList={addWeekToShoppingList} onCreatePlan={() => setIsWeekPlanOpen(true)} />}
 
     {isRecipePickerOpen && <RecipePicker recipes={recipes} onClose={() => setIsRecipePickerOpen(false)} onSelect={(recipe) => { setAdding(recipe); setIsRecipePickerOpen(false); }} />}
     {isManualMealModalOpen && <ManualMealModal date={date} onClose={() => setIsManualMealModalOpen(false)} />}
@@ -85,6 +86,7 @@ export default function DiaryPage() {
     {isWaterModalOpen && <AddWaterModal date={date} onClose={() => setIsWaterModalOpen(false)} onSave={adjustWater} />}
     {adding && <AddMealModal recipe={adding} initialDate={date} onClose={() => setAdding(null)} />}
     {editing && (() => { const recipe = recipes.find((item) => item.id === editing.recipeId); return recipe ? <AddMealModal recipe={recipe} entry={editing} onClose={() => setEditing(null)} /> : null; })()}
+    {isWeekPlanOpen && <WeeklyPlanModal week={week} onClose={() => setIsWeekPlanOpen(false)} />}
   </div>;
 }
 
@@ -181,12 +183,120 @@ function RecipePicker({ recipes, onClose, onSelect }: { recipes: Recipe[]; onClo
   return <div className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-5 backdrop-blur-sm"><section className="card flex max-h-[80vh] w-full max-w-xl flex-col p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-semibold text-leaf-600">{t('Diário')}</p><h2 className="mt-1 text-xl font-bold">{t('Adicionar refeição')}</h2><p className="mt-1 text-sm text-stone-400">{t('Pesquisa uma receita para registar no diário.')}</p></div><button type="button" onClick={onClose} className="rounded-xl p-2 hover:bg-white/5" aria-label={t('Cancelar')}><X /></button></div><label className="relative mt-5"><Search className="absolute left-4 top-3.5 text-stone-400" size={19} /><input autoFocus className="input !pl-12" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('Ex.: frango, aveia, salmão...')} /></label><div className="mt-4 min-h-0 space-y-2 overflow-y-auto pr-1">{filtered.length ? filtered.map((recipe) => <button key={recipe.id} type="button" onClick={() => onSelect(recipe)} className="flex w-full items-center justify-between gap-4 rounded-2xl border border-white/10 p-4 text-left transition hover:border-leaf-500/50 hover:bg-white/5"><div><p className="font-bold">{recipeName(recipe, i18n.language)}</p><p className="mt-1 text-xs text-stone-400">{Math.round(recipe.calories)} kcal · P {Math.round(recipe.protein)}g · C {Math.round(recipe.carbs)}g · G {Math.round(recipe.fat)}g</p></div><Plus className="shrink-0 text-leaf-600" size={20} /></button>) : <p className="rounded-2xl bg-white/5 p-5 text-center text-sm text-stone-400">{t('Nenhuma receita encontrada.')}</p>}</div></section></div>;
 }
 
-function WeeklyView({ week, entries, locale, today: currentDay, onPrevious, onNext, onCurrent, onOpenDay, onAddToShoppingList }: { week: string[]; entries: MealEntry[]; locale: string; today: string; onPrevious: () => void; onNext: () => void; onCurrent: () => void; onOpenDay: (day: string) => void; onAddToShoppingList: () => void }) {
+type PlannedMeal = { date: string; mealType: MealType; recipe: Recipe; portions: number };
+
+function WeeklyPlanModal({ week, onClose }: { week: string[]; onClose: () => void }) {
+  const { recipes, entries, goals, profile, recipeReviews, addMeal } = useMeals();
   const { t, i18n } = useTranslation();
+  const [version, setVersion] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const plan = useMemo(() => buildWeeklyPlan(week, recipes, entries, goals, profile.dislikedIngredients, profile.userId, recipeReviews, version), [week, recipes, entries, goals, profile.dislikedIngredients, profile.userId, recipeReviews, version]);
+  const save = async () => {
+    setSaving(true); setError('');
+    try {
+      for (const item of plan) await addMeal(item.recipe, item.mealType, item.portions, item.date);
+      onClose();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : t('Não foi possível gerar o plano.')); }
+    finally { setSaving(false); }
+  };
+  return <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-ink/50 p-5 backdrop-blur-sm"><section className="card my-5 w-full max-w-2xl p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-semibold text-purple-300">{t('Planeamento automático')}</p><h2 className="mt-1 text-2xl font-extrabold">{t('Gerar plano da semana')}</h2><p className="mt-2 text-sm leading-relaxed text-stone-400">{t('Vamos preencher apenas refeições futuras em falta, com base nas tuas metas e preferências.')}</p></div><button type="button" onClick={onClose} className="rounded-xl p-2 hover:bg-white/5" aria-label={t('Cancelar')}><X /></button></div><div className="mt-5 rounded-2xl border border-purple-400/20 bg-purple-500/10 p-4 text-sm text-purple-100"><p className="font-bold">{t('{{count}} refeições serão planeadas', { count: plan.length })}</p><p className="mt-1 text-xs text-stone-300">{t('Não alteramos refeições que já existam e ignoramos ingredientes a evitar.')}</p></div>{plan.length ? <div className="mt-5 max-h-72 space-y-2 overflow-y-auto pr-1">{plan.map((item, index) => <div key={`${item.date}-${item.mealType}-${index}`} className="flex items-center justify-between gap-4 rounded-xl bg-white/5 p-3"><div><p className="font-bold">{i18n.language.startsWith('en') && item.recipe.nameEn ? item.recipe.nameEn : item.recipe.name}</p><p className="mt-1 text-xs text-stone-400">{parseDateValue(item.date).toLocaleDateString(i18n.language.startsWith('en') ? 'en-GB' : 'pt-PT', { weekday: 'short', day: 'numeric', month: 'short' })} · {t(item.mealType)}</p></div><p className="shrink-0 text-sm font-semibold text-stone-300">{item.portions}× · {Math.round(item.recipe.calories * item.portions)} kcal</p></div>)}</div> : <p className="mt-5 rounded-2xl bg-white/5 p-5 text-sm text-stone-400">{t('Não há refeições futuras em falta nesta semana ou não encontrámos receitas compatíveis.')}</p>}{error && <p role="alert" className="mt-4 text-sm font-semibold text-rose-300">{error}</p>}<div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" onClick={() => setVersion((current) => current + 1)} disabled={saving} className="rounded-2xl border border-white/15 px-5 py-3 font-bold hover:bg-white/5 disabled:opacity-60">{t('Gerar outra opção')}</button><button type="button" onClick={() => void save()} disabled={saving || !plan.length} className="rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white disabled:opacity-60">{saving ? t('A guardar...') : t('Criar plano')}</button></div></section></div>;
+}
+
+function buildWeeklyPlan(week: string[], recipes: Recipe[], entries: MealEntry[], goals: NutritionGoals, dislikedIngredients: string[], userId: string, reviews: ReturnType<typeof useMeals>['recipeReviews'], version: number): PlannedMeal[] {
+  const normalise = (value: string) => value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const dislikes = dislikedIngredients.map(normalise).filter(Boolean);
+  const includesDisliked = (recipe: Recipe) => [...recipe.ingredients, ...recipe.ingredientsEn].some((ingredient) => dislikes.some((item) => normalise(ingredient).includes(item) || item.includes(normalise(ingredient))));
+  const shares: Record<MealType, number> = { 'Pequeno-almoço': 0.25, 'Almoço': 0.35, 'Lanche': 0.15, 'Jantar': 0.25 };
+  const categoryMatches = (recipe: Recipe, mealType: MealType) => mealType === 'Pequeno-almoço' ? recipe.category === 'Pequeno Almoço' : mealType === 'Lanche' ? ['Snacks', 'Sobremesas'].includes(recipe.category) : recipe.category === 'Almoço/Jantar';
+  const available = (mealType: MealType) => recipes.filter((recipe) => categoryMatches(recipe, mealType) && recipe.calories > 0 && !includesDisliked(recipe));
+  const plan: PlannedMeal[] = [];
+  const fourWeeksAgo = new Date(`${nutritionDay()}T12:00:00`); fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+  const recentCutoff = formatDateValue(fourWeeksAgo);
+  const recentlyUsedRecipeIds = new Set(entries.filter((entry) => entry.recipeId && entry.date >= recentCutoff && entry.date <= nutritionDay()).map((entry) => entry.recipeId));
+  const usedAcrossWeek = new Set(entries.filter((entry) => week.includes(entry.date) && entry.recipeId).map((entry) => entry.recipeId));
+  const userRatings = new Map(reviews.filter((review) => review.userId === userId).map((review) => [review.recipeId, review.rating]));
+  for (const day of week.filter((item) => item > nutritionDay())) {
+    const dayEntries = entries.filter((entry) => entry.date === day);
+    const current = sumMacros(dayEntries);
+    const missingTypes = types.filter((mealType) => !dayEntries.some((entry) => entry.mealType === mealType));
+    let remainingShare = missingTypes.reduce((sum, mealType) => sum + shares[mealType], 0);
+    const usedRecipeIds = new Set(dayEntries.map((entry) => entry.recipeId).filter(Boolean));
+    let remaining = { calories: Math.max(0, goals.calories - current.calories), protein: Math.max(0, goals.protein - current.protein), carbs: Math.max(0, goals.carbs - current.carbs), fat: Math.max(0, goals.fat - current.fat) };
+    for (const mealType of missingTypes) {
+      const share = shares[mealType] / remainingShare;
+      const target = { calories: remaining.calories * share, protein: remaining.protein * share, carbs: remaining.carbs * share, fat: remaining.fat * share };
+      const compatibleRecipes = available(mealType);
+      const candidateRecipes = compatibleRecipes.filter((recipe) => !recentlyUsedRecipeIds.has(recipe.id) && !usedAcrossWeek.has(recipe.id) && !usedRecipeIds.has(recipe.id));
+      const candidates = candidateRecipes.map((recipe) => {
+        const portions = Math.max(0.25, Math.min(4, Math.round((target.calories / recipe.calories) * 4) / 4));
+        const userRating = userRatings.get(recipe.id) ?? 0;
+        const score = Math.abs(recipe.protein * portions - target.protein) / Math.max(goals.protein, 1) + Math.abs(recipe.carbs * portions - target.carbs) / Math.max(goals.carbs, 1) + Math.abs(recipe.fat * portions - target.fat) / Math.max(goals.fat, 1) - userRating * 0.08;
+        return { recipe, portions, score };
+      }).sort((first, second) => first.score - second.score || ((first.recipe.id.charCodeAt(0) + version) % 7) - ((second.recipe.id.charCodeAt(0) + version) % 7));
+      const choice = candidates[0];
+      if (!choice) { remainingShare -= shares[mealType]; continue; }
+      plan.push({ date: day, mealType, recipe: choice.recipe, portions: choice.portions });
+      usedRecipeIds.add(choice.recipe.id);
+      usedAcrossWeek.add(choice.recipe.id);
+      remaining = { calories: Math.max(0, remaining.calories - choice.recipe.calories * choice.portions), protein: Math.max(0, remaining.protein - choice.recipe.protein * choice.portions), carbs: Math.max(0, remaining.carbs - choice.recipe.carbs * choice.portions), fat: Math.max(0, remaining.fat - choice.recipe.fat * choice.portions) };
+      remainingShare -= shares[mealType];
+    }
+  }
+  return plan;
+}
+
+function findReplacementRecipe(meal: MealEntry, recipes: Recipe[], entries: MealEntry[], dislikedIngredients: string[], userId: string, reviews: ReturnType<typeof useMeals>['recipeReviews']): { recipe: Recipe; portions: number } | null {
+  const normalise = (value: string) => value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const dislikes = dislikedIngredients.map(normalise).filter(Boolean);
+  const fourWeeksAgo = new Date(`${nutritionDay()}T12:00:00`); fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+  const cutoff = formatDateValue(fourWeeksAgo);
+  const recentlyUsed = new Set(entries.filter((entry) => entry.recipeId && entry.date >= cutoff && entry.date <= nutritionDay()).map((entry) => entry.recipeId));
+  const mealDate = parseDateValue(meal.date);
+  const weekStart = new Date(mealDate); weekStart.setDate(mealDate.getDate() - ((mealDate.getDay() + 6) % 7));
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+  const plannedThisWeek = new Set(entries.filter((entry) => entry.recipeId && entry.date >= formatDateValue(weekStart) && entry.date <= formatDateValue(weekEnd)).map((entry) => entry.recipeId));
+  const ratings = new Map(reviews.filter((review) => review.userId === userId).map((review) => [review.recipeId, review.rating]));
+  const categoryMatches = (recipe: Recipe) => meal.mealType === 'Pequeno-almoço' ? recipe.category === 'Pequeno Almoço' : meal.mealType === 'Lanche' ? ['Snacks', 'Sobremesas'].includes(recipe.category) : recipe.category === 'Almoço/Jantar';
+  const candidates = recipes.filter((recipe) => {
+    const containsDisliked = [...recipe.ingredients, ...recipe.ingredientsEn].some((ingredient) => dislikes.some((item) => normalise(ingredient).includes(item) || item.includes(normalise(ingredient))));
+    return recipe.id !== meal.recipeId && recipe.calories > 0 && categoryMatches(recipe) && !recentlyUsed.has(recipe.id) && !plannedThisWeek.has(recipe.id) && !containsDisliked;
+  }).map((recipe) => {
+    const portions = Math.max(0.25, Math.min(4, Math.round((meal.calories / recipe.calories) * 4) / 4));
+    const score = Math.abs(recipe.calories * portions - meal.calories) / Math.max(meal.calories, 1) + Math.abs(recipe.protein * portions - meal.protein) / Math.max(meal.protein, 1) + Math.abs(recipe.carbs * portions - meal.carbs) / Math.max(meal.carbs, 1) + Math.abs(recipe.fat * portions - meal.fat) / Math.max(meal.fat, 1) - (ratings.get(recipe.id) ?? 0) * 0.08;
+    return { recipe, portions, score };
+  }).sort((first, second) => first.score - second.score);
+  return candidates[0] ? { recipe: candidates[0].recipe, portions: candidates[0].portions } : null;
+}
+
+function WeeklyView({ week, entries, locale, today: currentDay, onPrevious, onNext, onCurrent, onOpenDay, onAddToShoppingList, onCreatePlan }: { week: string[]; entries: MealEntry[]; locale: string; today: string; onPrevious: () => void; onNext: () => void; onCurrent: () => void; onOpenDay: (day: string) => void; onAddToShoppingList: () => void; onCreatePlan: () => void }) {
+  const { t, i18n } = useTranslation();
+  const { moveMeal, replaceMeal, recipes, profile, recipeReviews } = useMeals();
+  const [draggedMeal, setDraggedMeal] = useState<MealEntry | null>(null);
+  const [moveError, setMoveError] = useState('');
+  const [swappingId, setSwappingId] = useState<string | null>(null);
+  const move = async (date: string, mealType: MealType) => {
+    if (!draggedMeal || (draggedMeal.date === date && draggedMeal.mealType === mealType)) return;
+    setMoveError('');
+    try { await moveMeal(draggedMeal.id, date, mealType); }
+    catch (reason) { setMoveError(reason instanceof Error ? reason.message : t('Não foi possível mover a refeição.')); }
+    finally { setDraggedMeal(null); }
+  };
+  const swap = async (meal: MealEntry) => {
+    setMoveError(''); setSwappingId(meal.id);
+    try {
+      const replacement = findReplacementRecipe(meal, recipes, entries, profile.dislikedIngredients, profile.userId, recipeReviews);
+      if (!replacement) throw new Error(t('Não encontrámos outra receita compatível para esta refeição.'));
+      await replaceMeal(meal.id, replacement.recipe, replacement.portions);
+    } catch (reason) { setMoveError(reason instanceof Error ? reason.message : t('Não foi possível trocar a receita.')); }
+    finally { setSwappingId(null); }
+  };
   const first = parseDateValue(week[0]); const last = parseDateValue(week[6]);
   const range = `${first.toLocaleDateString(locale, { day: 'numeric', month: 'short' })} – ${last.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })}`;
-  return <section className="mt-8"><div className="flex flex-wrap items-center justify-between gap-3"><button onClick={onCurrent} className="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold hover:bg-white/5">{t('Semana atual')}</button><div className="flex items-center gap-3"><button onClick={onPrevious} className="rounded-xl border border-white/10 p-2 hover:bg-white/5" aria-label={t('Semana anterior')}><ChevronLeft /></button><h2 className="min-w-44 text-center font-bold capitalize">{range}</h2><button onClick={onNext} className="rounded-xl border border-white/10 p-2 hover:bg-white/5" aria-label={t('Semana seguinte')}><ChevronRight /></button></div><button onClick={onAddToShoppingList} className="inline-flex items-center gap-2 rounded-xl bg-leaf-600 px-4 py-2 text-sm font-bold text-white"><ShoppingCart size={17} /> {t('Adicionar semana às compras')}</button></div>
-    <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-7">{week.map((day) => { const meals = entries.filter((entry) => entry.date === day); const total = sumMacros(meals); const date = parseDateValue(day); return <article key={day} className={`card flex min-h-72 flex-col p-4 ${day === currentDay ? 'border-leaf-500/50 ring-1 ring-leaf-500/20' : ''}`}><button onClick={() => onOpenDay(day)} className="text-left"><p className="text-xs font-bold uppercase text-leaf-700">{date.toLocaleDateString(locale, { weekday: 'short' })}</p><p className="mt-1 text-2xl font-extrabold">{date.getDate()}</p></button><div className="mt-4 rounded-xl bg-white/5 p-3"><p className="font-bold">{Math.round(total.calories)} kcal</p><p className="mt-1 text-[10px] text-stone-400">P {Math.round(total.protein)}g · C {Math.round(total.carbs)}g · F {Math.round(total.fat)}g</p></div><div className="mt-3 flex-1 space-y-2">{meals.length ? meals.map((meal) => <button key={meal.id} onClick={() => onOpenDay(day)} className={`block w-full rounded-xl p-2 text-left ${meal.isConsumed ? 'bg-emerald-500/10' : 'bg-amber-500/10'}`}><span className="block truncate text-xs font-bold">{i18n.language.startsWith('en') && meal.recipeNameEn ? meal.recipeNameEn : meal.recipeName}</span><span className={`text-[10px] ${meal.isConsumed ? 'text-emerald-300' : 'text-amber-300'}`}>{t(meal.mealType)} · {t(meal.isConsumed ? 'Consumida' : 'Planeada')}</span></button>) : <p className="py-3 text-center text-xs text-stone-500">{t('Sem refeições')}</p>}</div><button onClick={() => onOpenDay(day)} className="mt-3 text-xs font-bold text-leaf-700">{t('Ver dia')}</button></article>; })}</div>
+  return <section className="mt-8"><div className="flex flex-wrap items-center justify-between gap-3"><button onClick={onCurrent} className="rounded-xl border border-white/10 px-4 py-2 text-sm font-bold hover:bg-white/5">{t('Semana atual')}</button><div className="flex items-center gap-3"><button onClick={onPrevious} className="rounded-xl border border-white/10 p-2 hover:bg-white/5" aria-label={t('Semana anterior')}><ChevronLeft /></button><h2 className="min-w-44 text-center font-bold capitalize">{range}</h2><button onClick={onNext} className="rounded-xl border border-white/10 p-2 hover:bg-white/5" aria-label={t('Semana seguinte')}><ChevronRight /></button></div><div className="flex flex-wrap gap-2"><button onClick={onCreatePlan} className="inline-flex items-center gap-2 rounded-xl border border-purple-400/40 px-4 py-2 text-sm font-bold text-purple-200 hover:bg-purple-500/10"><Sparkles size={17} /> {t('Gerar plano')}</button><button onClick={onAddToShoppingList} className="inline-flex items-center gap-2 rounded-xl bg-leaf-600 px-4 py-2 text-sm font-bold text-white"><ShoppingCart size={17} /> {t('Adicionar semana às compras')}</button></div></div>
+    {moveError && <p role="alert" className="mt-4 rounded-xl bg-rose-500/10 p-3 text-sm text-rose-300">{moveError}</p>}
+    <p className="mt-4 text-xs text-stone-400">{t('Arrasta uma refeição para outro dia ou tipo de refeição.')}</p>
+    <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-7">{week.map((day) => { const meals = entries.filter((entry) => entry.date === day); const total = sumMacros(meals); const date = parseDateValue(day); return <article key={day} className={`card flex min-h-72 flex-col p-4 ${day === currentDay ? 'border-leaf-500/50 ring-1 ring-leaf-500/20' : ''}`}><button onClick={() => onOpenDay(day)} className="text-left"><p className="text-xs font-bold uppercase text-leaf-700">{date.toLocaleDateString(locale, { weekday: 'short' })}</p><p className="mt-1 text-2xl font-extrabold">{date.getDate()}</p></button><div className="mt-4 rounded-xl bg-white/5 p-3"><p className="font-bold">{Math.round(total.calories)} kcal</p><p className="mt-1 text-[10px] text-stone-400">P {Math.round(total.protein)}g · C {Math.round(total.carbs)}g · F {Math.round(total.fat)}g</p></div><div className="mt-3 flex-1 space-y-2">{types.map((mealType) => { const slotMeals = meals.filter((meal) => meal.mealType === mealType); const isTarget = draggedMeal ? draggedMeal.date !== day || draggedMeal.mealType !== mealType : false; return <div key={mealType} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void move(day, mealType); }} className={`min-h-12 rounded-xl border p-2 transition ${isTarget ? 'border-purple-400/60 bg-purple-500/10' : 'border-white/5 bg-white/[0.02]'}`}><p className="mb-1 text-[10px] font-bold uppercase text-stone-500">{t(mealType)}</p>{slotMeals.length ? slotMeals.map((meal) => <div key={meal.id} draggable onDragStart={() => setDraggedMeal(meal)} onDragEnd={() => setDraggedMeal(null)} className={`flex items-center gap-1 rounded-lg p-1 ${meal.isConsumed ? 'bg-emerald-500/10' : 'bg-amber-500/10'} ${draggedMeal?.id === meal.id ? 'opacity-40' : ''}`}><button onClick={() => onOpenDay(day)} className="min-w-0 flex-1 p-1 text-left"><span className="block truncate text-xs font-bold">{i18n.language.startsWith('en') && meal.recipeNameEn ? meal.recipeNameEn : meal.recipeName}</span><span className="text-[10px] text-stone-400">{Math.round(meal.calories)} kcal · {meal.portions}×</span></button>{!meal.isConsumed && !meal.isManual && <button type="button" disabled={swappingId === meal.id} onClick={() => void swap(meal)} className="rounded-lg p-1.5 text-purple-200 hover:bg-purple-500/20 disabled:opacity-50" aria-label={t('Trocar receita')} title={t('Trocar receita')}><RefreshCw size={13} className={swappingId === meal.id ? 'animate-spin' : ''} /></button>}</div>) : <p className="py-1 text-center text-[10px] text-stone-600">{t('Largar aqui')}</p>}</div>; })}</div><button onClick={() => onOpenDay(day)} className="mt-3 text-xs font-bold text-leaf-700">{t('Ver dia')}</button></article>; })}</div>
   </section>;
 }
 

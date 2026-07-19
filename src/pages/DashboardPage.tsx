@@ -8,7 +8,7 @@ import { nutritionDay } from '../lib/nutrition-day';
 import { useState } from 'react';
 
 export default function DashboardPage() {
-  const { entries, goals, recipes, profile, waterConsumedMl, waterEntryDay, adjustWater } = useMeals();
+  const { entries, goals, recipes, profile, recipeReviews, waterConsumedMl, waterEntryDay, adjustWater } = useMeals();
   const { t, i18n } = useTranslation();
   const [waterError, setWaterError] = useState('');
   const [isUpdatingWater, setIsUpdatingWater] = useState(false);
@@ -22,12 +22,16 @@ export default function DashboardPage() {
   const normaliseIngredient = (value: string) => value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   const dislikedIngredients = profile.dislikedIngredients.map(normaliseIngredient).filter(Boolean);
   const hasDislikedIngredient = (ingredients: string[]) => ingredients.some((ingredient) => dislikedIngredients.some((disliked) => normaliseIngredient(ingredient).includes(disliked) || disliked.includes(normaliseIngredient(ingredient))));
-  const suggestions = dinnerMissing ? recipes.filter((recipe) => recipe.category === 'Almoço/Jantar' && !hasDislikedIngredient([...recipe.ingredients, ...recipe.ingredientsEn])).map((recipe) => {
+  const fourWeeksAgo = new Date(`${today}T12:00:00`); fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+  const recentCutoff = `${fourWeeksAgo.getFullYear()}-${String(fourWeeksAgo.getMonth() + 1).padStart(2, '0')}-${String(fourWeeksAgo.getDate()).padStart(2, '0')}`;
+  const recentlyConsumedRecipeIds = new Set(entries.filter((entry) => entry.recipeId && entry.date >= recentCutoff && entry.date <= today).map((entry) => entry.recipeId));
+  const userRatings = new Map(recipeReviews.filter((review) => review.userId === profile.userId).map((review) => [review.recipeId, review.rating]));
+  const suggestions = dinnerMissing ? recipes.filter((recipe) => recipe.category === 'Almoço/Jantar' && !recentlyConsumedRecipeIds.has(recipe.id) && !hasDislikedIngredient([...recipe.ingredients, ...recipe.ingredientsEn])).map((recipe) => {
     const macroScore = Math.abs(Math.max(goals.protein - total.protein, 0) - recipe.protein) / Math.max(goals.protein, 1)
       + Math.abs(Math.max(goals.carbs - total.carbs, 0) - recipe.carbs) / Math.max(goals.carbs, 1)
       + Math.abs(Math.max(goals.fat - total.fat, 0) - recipe.fat) / Math.max(goals.fat, 1);
     const calorieScore = Math.abs(remaining - recipe.calories) / Math.max(goals.calories, 1);
-    return { recipe, score: macroScore + calorieScore };
+    return { recipe, score: macroScore + calorieScore - (userRatings.get(recipe.id) ?? 0) * 0.08 };
   }).sort((a, b) => a.score - b.score).slice(0, 3) : [];
   const waterProgress = Math.min((todayWaterMl / profile.waterGoalMl) * 100, 100);
   const updateWater = async (amountMl: number) => {

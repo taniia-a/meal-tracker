@@ -67,6 +67,8 @@ interface MealContextValue {
     portions: number,
     date: string,
   ) => Promise<void>;
+  moveMeal: (entryId: string, date: string, mealType: MealType) => Promise<void>;
+  replaceMeal: (entryId: string, recipe: Recipe, portions: number) => Promise<void>;
   removeMeal: (id: string) => Promise<void>;
 }
 
@@ -693,6 +695,30 @@ export function MealProvider({
     );
   };
 
+  const moveMeal = async (entryId: string, date: string, mealType: MealType) => {
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const { error } = await neonClient
+      .from("meal_entries")
+      .update({ meal_date: date, meal_type: mealType, is_consumed: date <= localToday() })
+      .eq("id", entryId);
+    if (error) throw new Error(error.message);
+    setEntries((current) => current.map((entry) => entry.id === entryId ? { ...entry, date, mealType, isConsumed: date <= localToday() } : entry));
+  };
+
+  const replaceMeal = async (entryId: string, recipe: Recipe, portions: number) => {
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const entry = entries.find((item) => item.id === entryId);
+    if (!entry) throw new Error("Não foi possível encontrar a refeição planeada.");
+    const { data, error } = await neonClient
+      .from("meal_entries")
+      .update({ recipe_id: recipe.id, portions })
+      .eq("id", entryId)
+      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed")
+      .single();
+    if (error || !data) throw new Error(error?.message || "Não foi possível trocar a receita.");
+    setEntries((current) => current.map((item) => item.id === entryId ? mapMealEntry(data, recipe) : item));
+  };
+
   const removeMeal = async (id: string) => {
     if (!neonClient) throw new Error("O cliente Neon não está configurado.");
     const { error } = await neonClient
@@ -766,6 +792,8 @@ export function MealProvider({
         addManualMeal,
         updateManualMeal,
         updateMeal,
+        moveMeal,
+        replaceMeal,
         removeMeal,
       }}
     >

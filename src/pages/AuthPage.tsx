@@ -35,6 +35,16 @@ export default function AuthPage() {
 
       if (result.error) {
         setError(t(translateAuthError(result.error.message)));
+      } else {
+        // The session has just been created. Reload only after the SDK confirms
+        // it, so the app remounts with the fresh authenticated state after a
+        // previous sign-out as well.
+        const freshSession = await authClient.getSession();
+        if (!freshSession.data?.user) {
+          setError(t('A sessão foi criada, mas não foi possível confirmá-la. Tenta novamente.'));
+          return;
+        }
+        window.location.replace('/');
       }
     } catch {
       setError(t('Não foi possível contactar o serviço de autenticação. Tenta novamente.'));

@@ -2,6 +2,7 @@ const HOP_BY_HOP_HEADERS = new Set([
   'connection',
   'content-length',
   'content-encoding',
+  'forwarded',
   'host',
   'keep-alive',
   'proxy-authenticate',
@@ -23,7 +24,12 @@ function getUpstreamUrl(request: Request, authUrl: string) {
 function copyRequestHeaders(request: Request) {
   const headers = new Headers();
   request.headers.forEach((value, name) => {
-    if (!HOP_BY_HOP_HEADERS.has(name.toLowerCase())) headers.set(name, value);
+    const normalizedName = name.toLowerCase();
+    // These headers describe the Vercel request, not the upstream Neon Auth
+    // request. Forwarding them makes Neon reject the hostname.
+    if (!HOP_BY_HOP_HEADERS.has(normalizedName) && !normalizedName.startsWith('x-forwarded-') && !normalizedName.startsWith('x-vercel-')) {
+      headers.set(name, value);
+    }
   });
   return headers;
 }

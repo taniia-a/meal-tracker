@@ -1,4 +1,4 @@
-const CACHE = 'meal-tracker-shell-v1';
+const CACHE = 'meal-tracker-shell-v2';
 const APP_SHELL = ['/', '/manifest.webmanifest', '/meal-tracker-icon.svg'];
 
 self.addEventListener('install', (event) => {

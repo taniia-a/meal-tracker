@@ -17,10 +17,11 @@ function timeMatches(time: string | undefined, hour: number, minute: number) {
 export default async function handler(request: Request) {
   if (request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) return new Response('Unauthorized', { status: 401 });
   if (!process.env.DATABASE_URL || !process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY || !process.env.VAPID_SUBJECT) return new Response('Push is not configured', { status: 503 });
-  webpush.setVapidDetails(process.env.VAPID_SUBJECT, process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
-  const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
-  await client.connect();
+  let client: pg.Client | undefined;
   try {
+    webpush.setVapidDetails(process.env.VAPID_SUBJECT, process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+    client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
     const now = portugalTime();
     const { rows } = await client.query<SubscriptionRow>('SELECT id, user_id, endpoint, p256dh, auth, reminders FROM push_subscriptions');
     for (const subscription of rows) {
@@ -44,5 +45,11 @@ export default async function handler(request: Request) {
       }
     }
     return Response.json({ ok: true });
-  } finally { await client.end(); }
+  } catch (error) {
+    console.error('push-reminders failed', error);
+    const message = error instanceof Error ? error.message : 'Erro desconhecido';
+    return Response.json({ error: `Não foi possível processar os lembretes: ${message}` }, { status: 500 });
+  } finally {
+    await client?.end();
+  }
 }

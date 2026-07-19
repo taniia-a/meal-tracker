@@ -84,8 +84,11 @@ input[type="date"].input::-webkit-date-and-time-value {
 }
 
 .diary-date-input::-webkit-datetime-edit {
+  display: block;
+  width: 100%;
   padding: 0;
   text-align: center;
+  transform: translateY(0.25rem);
 }
 
 /* iOS can ignore `color` on numeric controls, leaving their value invisible. */

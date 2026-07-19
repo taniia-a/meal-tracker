@@ -5,6 +5,7 @@ import NumberInput from '../components/NumberInput';
 import { FormEvent, useEffect, useState } from 'react';
 import { getReminderSettings, ReminderSettings, saveReminderSettings } from '../lib/reminders';
 import { showAppNotification } from '../lib/notifications';
+import { subscribeToPush, unsubscribeFromPush } from '../lib/push';
 
 export default function SettingsPage() {
   const { profile, updateProfile, updateWaterGoal, updateDislikedIngredients } = useMeals();
@@ -54,11 +55,19 @@ function ReminderSettingsPanel() {
   const [feedback, setFeedback] = useState('');
 
   useEffect(() => setSettings(getReminderSettings(profile.userId)), [profile.userId]);
-  const update = (next: ReminderSettings) => { setSettings(next); saveReminderSettings(profile.userId, next); };
+  const update = (next: ReminderSettings) => {
+    setSettings(next);
+    saveReminderSettings(profile.userId, next);
+    if (permission === 'granted') {
+      if (next.meals || next.water || next.weight) void subscribeToPush(next).catch((error) => setFeedback(error instanceof Error ? error.message : t('Não foi possível ativar as notificações push.')));
+      else void unsubscribeFromPush();
+    }
+  };
   const enableNotifications = async () => {
     if (permission === 'granted') {
       const hasActive = settings.meals || settings.water || settings.weight;
-      update({ ...settings, meals: !hasActive, water: !hasActive, weight: !hasActive });
+      const next = { ...settings, meals: !hasActive, water: !hasActive, weight: !hasActive };
+      update(next);
       if (!hasActive) void showAppNotification('Meal Tracker', t('Notificações ativadas com sucesso.'));
       setFeedback(hasActive ? t('Lembretes desativados.') : t('Notificações ativadas com sucesso.'));
       return;
@@ -67,7 +76,9 @@ function ReminderSettingsPanel() {
     const result = await Notification.requestPermission();
     setPermission(result);
     if (result === 'granted') {
-      update({ ...settings, meals: true, water: true, weight: true });
+      const next = { ...settings, meals: true, water: true, weight: true };
+      setSettings(next); saveReminderSettings(profile.userId, next);
+      try { await subscribeToPush(next); } catch (error) { setFeedback(error instanceof Error ? error.message : t('Não foi possível ativar as notificações push.')); return; }
       void showAppNotification('Meal Tracker', t('Notificações ativadas com sucesso.'));
     }
     setFeedback(result === 'granted' ? t('Notificações ativadas com sucesso.') : t('Permite as notificações nas definições do navegador para receber lembretes.'));

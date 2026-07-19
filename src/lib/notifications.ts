@@ -1,5 +1,4 @@
 export async function showAppNotification(title: string, body: string) {
-  window.dispatchEvent(new CustomEvent('meal-tracker-notification', { detail: { title, body } }));
   if (!('Notification' in window) || Notification.permission !== 'granted') return false;
   const options = { body, icon: '/meal-tracker-icon.svg' };
   try {

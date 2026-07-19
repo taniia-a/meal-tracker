@@ -147,6 +147,27 @@ CREATE TABLE IF NOT EXISTS pantry_items (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Subscrições para notificações push da PWA. Uma pessoa pode ter vários
+-- dispositivos/browsers associados à mesma conta.
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL DEFAULT (auth.user_id()),
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  reminders JSONB NOT NULL DEFAULT '{"meals":false,"mealsTime":"21:00","water":false,"weight":false,"weightTime":"08:00"}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS push_notification_log (
+  subscription_id UUID NOT NULL REFERENCES push_subscriptions(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('meals', 'water', 'weight')),
+  slot TEXT NOT NULL,
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (subscription_id, kind, slot)
+);
+
 CREATE TABLE IF NOT EXISTS weight_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id TEXT NOT NULL DEFAULT (auth.user_id()),
@@ -177,6 +198,7 @@ CREATE INDEX IF NOT EXISTS recipe_favorites_user_idx ON recipe_favorites (user_i
 CREATE INDEX IF NOT EXISTS recipe_reviews_recipe_idx ON recipe_reviews (recipe_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS daily_fact_views_user_idx ON daily_fact_views (user_id, seen_on DESC);
 CREATE INDEX IF NOT EXISTS pantry_items_user_idx ON pantry_items (user_id, expires_on);
+CREATE INDEX IF NOT EXISTS push_subscriptions_user_idx ON push_subscriptions (user_id);
 CREATE INDEX IF NOT EXISTS weight_entries_user_date_idx ON weight_entries (user_id, measured_on);
 
 -- Cria retroativamente o primeiro registo de peso para perfis já existentes.
@@ -200,6 +222,8 @@ ALTER TABLE recipe_favorites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recipe_reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_fact_views ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pantry_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE push_notification_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE weight_entries ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS profiles_own_rows ON profiles;
@@ -217,6 +241,8 @@ DROP POLICY IF EXISTS recipe_reviews_authenticated_read ON recipe_reviews;
 DROP POLICY IF EXISTS recipe_reviews_own_rows ON recipe_reviews;
 DROP POLICY IF EXISTS daily_fact_views_own_rows ON daily_fact_views;
 DROP POLICY IF EXISTS pantry_items_own_rows ON pantry_items;
+DROP POLICY IF EXISTS push_subscriptions_own_rows ON push_subscriptions;
+DROP POLICY IF EXISTS push_notification_log_own_rows ON push_notification_log;
 DROP POLICY IF EXISTS weight_entries_own_rows ON weight_entries;
 
 CREATE POLICY profiles_own_rows ON profiles
@@ -287,6 +313,15 @@ CREATE POLICY pantry_items_own_rows ON pantry_items
   USING ((SELECT auth.user_id()) = user_id)
   WITH CHECK ((SELECT auth.user_id()) = user_id);
 
+CREATE POLICY push_subscriptions_own_rows ON push_subscriptions
+  FOR ALL TO authenticated
+  USING ((SELECT auth.user_id()) = user_id)
+  WITH CHECK ((SELECT auth.user_id()) = user_id);
+
+CREATE POLICY push_notification_log_own_rows ON push_notification_log
+  FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM push_subscriptions WHERE push_subscriptions.id = subscription_id AND push_subscriptions.user_id = (SELECT auth.user_id())));
+
 CREATE POLICY weight_entries_own_rows ON weight_entries
   FOR ALL TO authenticated
   USING ((SELECT auth.user_id()) = user_id)
@@ -299,6 +334,8 @@ GRANT SELECT, INSERT, DELETE ON recipe_favorites TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON recipe_reviews TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON daily_fact_views TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON pantry_items TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON push_subscriptions TO authenticated;
+GRANT SELECT ON push_notification_log TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON weight_entries TO authenticated;
 
 -- Keep the Data API schema cache in sync after migrations.

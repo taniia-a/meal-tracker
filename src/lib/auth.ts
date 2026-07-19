@@ -4,7 +4,7 @@ import { BetterAuthReactAdapter } from '@neondatabase/neon-js/auth/react/adapter
 // In deployed builds the browser talks to our own Vercel endpoint. That keeps
 // the session cookie first-party, which is required by iOS installed PWAs.
 export const authUrl = import.meta.env.PROD
-  ? '/api/auth'
+  ? new URL('/api/auth', window.location.origin).toString()
   : import.meta.env.VITE_NEON_AUTH_URL as string | undefined;
 export const dataApiUrl = import.meta.env.VITE_NEON_DATA_API_URL as string | undefined;
 

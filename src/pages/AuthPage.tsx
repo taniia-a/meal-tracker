@@ -23,6 +23,12 @@ export default function AuthPage() {
 
     try {
       if (!authClient) return;
+
+      // A stale/expired Better Auth cookie can leave the browser with an old
+      // session cache. Clearing it first makes a new email sign-in start from
+      // a known clean state without requiring the user to close the tab.
+      if (mode === 'sign-in') await authClient.signOut().catch(() => undefined);
+
       const result = mode === 'sign-in'
         ? await authClient.signIn.email({ email, password })
         : await authClient.signUp.email({ email, password, name });

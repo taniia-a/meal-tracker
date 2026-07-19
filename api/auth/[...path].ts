@@ -13,9 +13,9 @@ const HOP_BY_HOP_HEADERS = new Set([
   'upgrade',
 ]);
 
-function getUpstreamUrl(request: Request, authUrl: string) {
+function getUpstreamUrl(request: Request, authUrl: string, pathOverride?: string) {
   const incoming = new URL(request.url);
-  const pathname = incoming.pathname.replace(/^\/api\/auth\/?/, '');
+  const pathname = pathOverride ?? incoming.pathname.replace(/^\/api\/auth\/?/, '');
   const upstream = new URL(pathname, `${authUrl.replace(/\/$/, '')}/`);
   upstream.search = incoming.search;
   return upstream;
@@ -52,12 +52,12 @@ function copyResponseHeaders(response: Response) {
   return headers;
 }
 
-export async function authProxy(request: Request, env: Record<string, string | undefined> = process.env) {
+export async function authProxy(request: Request, env: Record<string, string | undefined> = process.env, pathOverride?: string) {
   const authUrl = env.NEON_AUTH_URL;
   if (!authUrl) return Response.json({ error: 'NEON_AUTH_URL não está configurada no servidor.' }, { status: 503 });
 
   try {
-    const response = await fetch(getUpstreamUrl(request, authUrl), {
+    const response = await fetch(getUpstreamUrl(request, authUrl, pathOverride), {
       method: request.method,
       headers: copyRequestHeaders(request),
       body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body,

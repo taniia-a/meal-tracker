@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/auth/:authPath*",
+      "destination": "/api/neon-auth?authPath=:authPath*"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

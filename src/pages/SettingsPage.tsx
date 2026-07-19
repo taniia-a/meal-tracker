@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { getReminderSettings, ReminderSettings, saveReminderSettings } from '../lib/reminders';
 import { showAppNotification } from '../lib/notifications';
 import { sendPushTest, subscribeToPush, unsubscribeFromPush } from '../lib/push';
+import { authClient } from '../lib/auth';
 
 export default function SettingsPage() {
   const { profile, updateProfile, updateWaterGoal, updateDislikedIngredients } = useMeals();
@@ -44,7 +45,38 @@ export default function SettingsPage() {
     } finally { setSavingDisliked(false); }
   };
 
-  return <div className="mx-auto max-w-3xl"><p className="font-semibold text-leaf-700">{t('Preferências')}</p><h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">{t('Definições')}</h1><p className="mt-2 text-stone-400">{t('Atualiza os teus dados, recalcula o plano ou define objetivos manualmente.')}</p><section className="card mt-8 p-7"><NutritionProfileForm initialProfile={profile} initialGoals={profile.goals} initialGoalMode={profile.goalMode} submitLabel={t('Guardar alterações')} onSave={updateProfile} /></section><section className="card mt-6 p-7"><h2 className="text-xl font-bold">{t('Objetivo diário de água')}</h2><p className="mt-1 text-sm text-stone-400">{t('Define a quantidade de água que queres acompanhar todos os dias.')}</p><form className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={saveWaterGoal}><label className="text-sm font-semibold sm:w-56">{t('Água por dia (ml)')}<NumberInput className="input mt-2" min="250" max="10000" step="50" required value={waterGoal} onValueChange={setWaterGoal} /></label><button disabled={savingWater} className="rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white disabled:opacity-60">{savingWater ? t('A guardar...') : t('Guardar objetivo de água')}</button></form>{waterFeedback && <p role="status" className="mt-3 text-sm font-semibold text-leaf-600">{waterFeedback}</p>}</section><section className="card mt-6 p-7"><h2 className="text-xl font-bold">{t('Ingredientes a evitar')}</h2><p className="mt-1 text-sm text-stone-400">{t('Não serão sugeridas receitas que incluam estes ingredientes.')}</p><form className="mt-5" onSubmit={saveDislikedIngredients}><label className="block text-sm font-semibold">{t('Ingredientes separados por vírgulas')}<textarea className="input mt-2 min-h-24 resize-y" value={dislikedIngredients} onChange={(event) => setDislikedIngredients(event.target.value)} placeholder={t('Ex.: cogumelos, atum, coentros')} /></label><button disabled={savingDisliked} className="mt-4 rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white disabled:opacity-60">{savingDisliked ? t('A guardar...') : t('Guardar ingredientes')}</button></form>{dislikedFeedback && <p role="status" className="mt-3 text-sm font-semibold text-leaf-600">{dislikedFeedback}</p>}</section><ReminderSettingsPanel /></div>;
+  return <div className="mx-auto max-w-3xl"><p className="font-semibold text-leaf-700">{t('Preferências')}</p><h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">{t('Definições')}</h1><p className="mt-2 text-stone-400">{t('Atualiza os teus dados, recalcula o plano ou define objetivos manualmente.')}</p><section className="card mt-8 p-7"><NutritionProfileForm initialProfile={profile} initialGoals={profile.goals} initialGoalMode={profile.goalMode} submitLabel={t('Guardar alterações')} onSave={updateProfile} /></section><section className="card mt-6 p-7"><h2 className="text-xl font-bold">{t('Objetivo diário de água')}</h2><p className="mt-1 text-sm text-stone-400">{t('Define a quantidade de água que queres acompanhar todos os dias.')}</p><form className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={saveWaterGoal}><label className="text-sm font-semibold sm:w-56">{t('Água por dia (ml)')}<NumberInput className="input mt-2" min="250" max="10000" step="50" required value={waterGoal} onValueChange={setWaterGoal} /></label><button disabled={savingWater} className="rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white disabled:opacity-60">{savingWater ? t('A guardar...') : t('Guardar objetivo de água')}</button></form>{waterFeedback && <p role="status" className="mt-3 text-sm font-semibold text-leaf-600">{waterFeedback}</p>}</section><section className="card mt-6 p-7"><h2 className="text-xl font-bold">{t('Ingredientes a evitar')}</h2><p className="mt-1 text-sm text-stone-400">{t('Não serão sugeridas receitas que incluam estes ingredientes.')}</p><form className="mt-5" onSubmit={saveDislikedIngredients}><label className="block text-sm font-semibold">{t('Ingredientes separados por vírgulas')}<textarea className="input mt-2 min-h-24 resize-y" value={dislikedIngredients} onChange={(event) => setDislikedIngredients(event.target.value)} placeholder={t('Ex.: cogumelos, atum, coentros')} /></label><button disabled={savingDisliked} className="mt-4 rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white disabled:opacity-60">{savingDisliked ? t('A guardar...') : t('Guardar ingredientes')}</button></form>{dislikedFeedback && <p role="status" className="mt-3 text-sm font-semibold text-leaf-600">{dislikedFeedback}</p>}</section><PasswordSettingsPanel /><ReminderSettingsPanel /></div>;
+}
+
+type ChangePasswordClient = { changePassword: (input: { currentPassword: string; newPassword: string; revokeOtherSessions?: boolean }) => Promise<{ error?: { message?: string } | null }> };
+
+function PasswordSettingsPanel() {
+  const { t } = useTranslation();
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const [hasError, setHasError] = useState(false);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setFeedback(''); setHasError(false);
+    if (newPassword !== confirmation) { setHasError(true); setFeedback(t('As novas palavras-passe não coincidem.')); return; }
+    if (newPassword.length < 8) { setHasError(true); setFeedback(t('A nova palavra-passe deve ter pelo menos 8 caracteres.')); return; }
+    if (!authClient) { setHasError(true); setFeedback(t('Não foi possível contactar o serviço de autenticação.')); return; }
+    setSaving(true);
+    try {
+      const client = authClient as unknown as ChangePasswordClient;
+      const result = await client.changePassword({ currentPassword, newPassword, revokeOtherSessions: false });
+      if (result.error) { setHasError(true); setFeedback(result.error.message || t('Não foi possível alterar a palavra-passe.')); return; }
+      setCurrentPassword(''); setNewPassword(''); setConfirmation('');
+      setFeedback(t('Palavra-passe alterada com sucesso.'));
+    } catch (error) { setHasError(true); setFeedback(error instanceof Error ? error.message : t('Não foi possível alterar a palavra-passe.')); }
+    finally { setSaving(false); }
+  };
+
+  return <section className="card mt-6 p-7"><h2 className="text-xl font-bold">{t('Palavra-passe')}</h2><p className="mt-1 text-sm text-stone-400">{t('Altera a tua palavra-passe mantendo a sessão atual iniciada.')}</p><form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={submit}><label className="block text-sm font-semibold sm:col-span-2">{t('Palavra-passe atual')}<input className="input mt-2" type="password" autoComplete="current-password" required value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label><label className="block text-sm font-semibold">{t('Nova palavra-passe')}<input className="input mt-2" type="password" autoComplete="new-password" minLength={8} required value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></label><label className="block text-sm font-semibold">{t('Confirmar nova palavra-passe')}<input className="input mt-2" type="password" autoComplete="new-password" minLength={8} required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label><div className="sm:col-span-2"><button disabled={saving} className="rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white disabled:opacity-60">{saving ? t('A guardar...') : t('Alterar palavra-passe')}</button>{feedback && <p role="status" className={`mt-3 text-sm font-semibold ${hasError ? 'text-rose-300' : 'text-leaf-600'}`}>{feedback}</p>}</div></form></section>;
 }
 
 function ReminderSettingsPanel() {

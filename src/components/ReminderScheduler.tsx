@@ -5,7 +5,7 @@ import { canSendRepeatingReminder, getReminderSettings, isWaterReminderWindow, m
 import { showAppNotification } from '../lib/notifications';
 
 export default function ReminderScheduler() {
-  const { profile, waterConsumedMl } = useMeals();
+  const { profile, waterConsumedMl, entries } = useMeals();
 
   useEffect(() => {
     const checkReminders = () => {
@@ -18,8 +18,9 @@ export default function ReminderScheduler() {
         markReminderSent(profile.userId, day, kind);
       };
 
-      if (settings.meals && timeReached(settings.mealsTime)) {
-        notify('meals', 'Meal Tracker', 'Ainda não registaste nenhuma refeição hoje.');
+      const mealTypesToday = new Set(entries.filter((entry) => entry.date === day).map((entry) => entry.mealType));
+      if (settings.meals && mealTypesToday.size < 4 && timeReached(settings.mealsTime)) {
+        notify('meals', 'Meal Tracker', 'Não te esqueças de registar as tuas refeições de hoje.');
       }
       if (settings.water && isWaterReminderWindow() && waterConsumedMl < profile.waterGoalMl && canSendRepeatingReminder(profile.userId, 'water', 60)) {
         void showAppNotification('Meal Tracker', 'Ainda não atingiste o teu objetivo de água de hoje.');
@@ -32,7 +33,7 @@ export default function ReminderScheduler() {
     checkReminders();
     const interval = window.setInterval(checkReminders, 60_000);
     return () => window.clearInterval(interval);
-  }, [profile, waterConsumedMl]);
+  }, [profile, waterConsumedMl, entries]);
 
   return null;
 }

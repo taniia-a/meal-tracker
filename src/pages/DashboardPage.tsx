@@ -74,7 +74,7 @@ export default function DashboardPage() {
     <div className="mx-auto max-w-6xl">
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div><p className="font-semibold text-leaf-600">{t('O teu dia nutricional')}</p><h1 className="mt-1 text-3xl font-extrabold sm:text-4xl">{t('Olá! O que vamos comer?')}</h1><p className="mt-2 text-stone-500">{t('Acompanha as refeições e mantém os teus objetivos à vista.')}</p></div>
-        <Link to="/receitas" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white hover:bg-leaf-700"><Plus size={19} /> {t('Registar refeição')}</Link>
+        <Link to="/diario?pesquisar=1" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white hover:bg-leaf-700"><Plus size={19} /> {t('Registar refeição')}</Link>
       </div>
 
       <section className="mt-8 grid gap-5 lg:grid-cols-[1.1fr_1fr]">

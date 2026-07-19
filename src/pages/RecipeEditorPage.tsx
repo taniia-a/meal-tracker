@@ -368,8 +368,8 @@ export default function RecipeEditorPage() {
               <span>{t("Opcional")}</span>
             </div>
             {recipe.ingredients.map((ingredient, index) => (
-              <div key={index} className="grid grid-cols-[1fr_auto] gap-2">
-                <div className="grid gap-2 sm:grid-cols-[6rem_10rem_1fr_1fr_5rem]">
+              <div key={index} className="rounded-2xl border border-white/10 bg-white/[0.02] p-3 sm:grid sm:grid-cols-[1fr_auto] sm:gap-2 sm:border-0 sm:bg-transparent sm:p-0">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-[6rem_10rem_1fr_1fr_5rem]">
                   <input
                     className="input"
                     type="number"
@@ -396,19 +396,20 @@ export default function RecipeEditorPage() {
                     ))}
                   </select>
                   <input
-                    className="input"
+                    className="input col-span-2 sm:col-span-1"
                     required
                     value={ingredient}
                     placeholder={t("Ingrediente (PT)")}
                     onChange={(e) => updateIngredient(index, e.target.value)}
                   />
                   <input
-                    className="input"
+                    className="input col-span-2 sm:col-span-1"
                     value={recipe.ingredientsEn[index] ?? ""}
                     placeholder={t("Ingrediente (EN)")}
                     onChange={(e) => updateIngredientEn(index, e.target.value)}
                   />
-                  <label className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-2 text-xs font-semibold">
+                  <label className="col-span-2 flex min-h-12 items-center justify-between gap-3 rounded-xl border border-purple-400/30 bg-purple-500/10 px-3 text-sm font-semibold text-purple-100 sm:col-span-1 sm:justify-center sm:border-white/10 sm:bg-white/5 sm:px-2 sm:text-xs sm:text-current">
+                    <span className="sm:hidden">{t("Ingrediente opcional")}</span>
                     <input
                       type="checkbox"
                       checked={recipe.ingredientOptional[index] ?? false}
@@ -442,9 +443,9 @@ export default function RecipeEditorPage() {
                       ),
                     })
                   }
-                  className="rounded-xl border border-white/10 p-3 text-stone-400 hover:text-rose-400 disabled:opacity-30"
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-3 py-3 text-sm font-semibold text-stone-400 hover:text-rose-400 disabled:opacity-30 sm:mt-0 sm:w-auto sm:p-3"
                 >
-                  <Minus size={18} />
+                  <Minus size={18} /><span className="sm:hidden">{t("Remover ingrediente")}</span>
                 </button>
               </div>
             ))}

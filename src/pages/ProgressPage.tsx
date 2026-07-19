@@ -212,7 +212,7 @@ export default function ProgressPage() {
             />
           </div>
         </section>
-        <form onSubmit={submit} className="card h-fit p-6">
+        <form onSubmit={submit} className="card self-stretch p-6">
           <div className="flex items-center gap-2">
             <Weight className="text-leaf-700" size={20} />
             <h2 className="font-bold">
@@ -222,7 +222,7 @@ export default function ProgressPage() {
           <label className="mt-5 block text-sm font-semibold">
             {t("Data")}
             <input
-              className="input mt-2 !w-44 !min-w-0"
+              className="input mt-2 !w-full !min-w-0"
               type="date"
               max={today()}
               value={date}
@@ -233,7 +233,7 @@ export default function ProgressPage() {
           <label className="mt-4 block text-sm font-semibold">
             {t("Peso (kg)")}
             <NumberInput
-              className="input mt-2 block !w-44"
+              className="input mt-2 block !w-full"
               min="1"
               step="0.1"
               value={weight}
@@ -293,7 +293,7 @@ export default function ProgressPage() {
       </div>
       <section className="card mt-6 p-6">
         <div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-leaf-600/15 text-leaf-700"><Target size={22} /></div><div><h2 className="font-bold">{t("Estatísticas")}</h2><p className="text-sm text-stone-400">{t("Baseadas apenas em dias já fechados.")}</p></div></div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Statistic icon={<ChefHat size={19} />} label={t("Receita mais consumida")} value={statistics.mostCookedRecipe || "—"} detail={statistics.mostCookedCount ? t("{{count}} vez(es)", { count: statistics.mostCookedCount }) : t("Sem dados ainda")} />
           <Statistic icon={<Beef size={19} />} label={t("Média diária de proteína")} value={statistics.averageDailyProtein == null ? "—" : `${statistics.averageDailyProtein.toFixed(1)} g`} detail={t("Por dia registado")} />
           <Statistic icon={<Target size={19} />} label={t("Média diária de hidratos")} value={statistics.averageDailyCarbs == null ? "—" : `${statistics.averageDailyCarbs.toFixed(1)} g`} detail={t("Por dia registado")} />
@@ -388,7 +388,7 @@ export default function ProgressPage() {
 }
 
 function Statistic({ icon, label, value, detail }: { icon: ReactNode; label: string; value: string; detail: string }) {
-  return <div className="rounded-2xl bg-white/5 p-4"><div className="flex items-center gap-2 text-leaf-700">{icon}<p className="text-xs font-bold uppercase tracking-wide">{label}</p></div><p className="mt-4 truncate text-lg font-extrabold" title={value}>{value}</p><p className="mt-1 text-xs text-stone-400">{detail}</p></div>;
+  return <div className="min-w-0 overflow-hidden rounded-2xl bg-white/5 p-4"><div className="flex min-w-0 items-center gap-2 text-leaf-700">{icon}<p className="min-w-0 text-xs font-bold uppercase tracking-wide">{label}</p></div><p className="mt-4 truncate text-lg font-extrabold" title={value}>{value}</p><p className="mt-1 truncate text-xs text-stone-400">{detail}</p></div>;
 }
 
 function calculateStatistics(entries: MealEntry[], goals: NutritionGoals, language: string) {

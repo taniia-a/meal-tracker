@@ -36,6 +36,7 @@ const emptyRecipe: RecipeInput = {
 const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
 const maxImageSize = 5 * 1024 * 1024;
 const units = ["g", "kg", "ml", "L", "unidade", "q.b."];
+const normaliseRecipeName = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 export default function RecipeEditorPage() {
   const { recipeId } = useParams();
@@ -70,6 +71,10 @@ export default function RecipeEditorPage() {
     setSaving(true);
     setError("");
     try {
+      const name = normaliseRecipeName(recipe.name);
+      if (recipes.some((item) => item.id !== recipeId && normaliseRecipeName(item.name) === name)) {
+        throw new Error(t('Já existe uma receita com este nome.'));
+      }
       let imageUrl = recipe.imageUrl;
       if (imageFile) {
         if (!authClient)

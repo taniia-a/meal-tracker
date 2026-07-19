@@ -72,6 +72,13 @@ const defaultGoals: NutritionGoals = {
 const localToday = nutritionDay;
 const calculateWaterGoal = (weightKg: number) =>
   Math.min(10000, Math.max(250, Math.round((weightKg * 35) / 50) * 50));
+const normaliseRecipeName = (value: string) =>
+  value
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 const recipeColumns =
   "id, owner_user_id, is_public, image_url, name, name_en, category, taste, instructions, instructions_en, notes, notes_en, prep_minutes, servings, calories, protein, carbs, fat";
 
@@ -409,6 +416,10 @@ export function MealProvider({
 
   const saveRecipe = async (input: RecipeInput, recipeId?: string) => {
     if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const name = normaliseRecipeName(input.name);
+    if (recipes.some((recipe) => recipe.id !== recipeId && normaliseRecipeName(recipe.name) === name)) {
+      throw new Error(t("Já existe uma receita com este nome."));
+    }
     const values = {
       owner_user_id: userId,
       name: input.name,

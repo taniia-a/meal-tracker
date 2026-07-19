@@ -12,7 +12,7 @@ import {
   Trash2,
   Utensils,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import AddMealModal from "../components/AddMealModal";
@@ -30,6 +30,7 @@ type Sort =
   | "calories-asc"
   | "protein-desc"
   | "protein-asc";
+const recipesPerPage = 60;
 
 export default function RecipesPage() {
   const {
@@ -51,6 +52,7 @@ export default function RecipesPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const filtered = useMemo(
     () =>
@@ -118,6 +120,17 @@ export default function RecipesPage() {
       favoriteRecipeIds,
       i18n.language,
     ],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, category, taste, scope, sort]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / recipesPerPage));
+  const currentPage = Math.min(page, pageCount);
+  const visibleRecipes = filtered.slice(
+    (currentPage - 1) * recipesPerPage,
+    currentPage * recipesPerPage,
   );
 
   const remove = async (recipe: Recipe) => {
@@ -297,7 +310,7 @@ export default function RecipesPage() {
         </p>
       )}
       <p className="mt-6 text-sm font-semibold text-stone-500">
-        {t("{{count}} receita(s) encontrada(s)", { count: filtered.length })}
+        {t("A mostrar {{shown}} de {{count}} receitas", { shown: visibleRecipes.length, count: filtered.length })}
       </p>
       {isRecipesLoading && (
         <div className="mt-10 text-center text-stone-400">
@@ -318,7 +331,7 @@ export default function RecipesPage() {
       )}
 
       <section className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((recipe) => {
+        {visibleRecipes.map((recipe) => {
           const owner = recipe.ownerId === profile.userId;
           const translated = Boolean(
             recipe.nameEn.trim() &&
@@ -344,6 +357,7 @@ export default function RecipesPage() {
                     <img
                       src={recipe.imageUrl}
                       alt={recipe.name}
+                      loading="lazy"
                       className="h-full w-full object-cover"
                     />
                   ) : (
@@ -460,6 +474,29 @@ export default function RecipesPage() {
           );
         })}
       </section>
+      {filtered.length > recipesPerPage && (
+        <nav className="mt-8 flex items-center justify-center gap-4" aria-label={t("Paginação das receitas")}>
+          <button
+            type="button"
+            disabled={currentPage === 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold disabled:opacity-40"
+          >
+            {t("Anterior")}
+          </button>
+          <span className="text-sm text-stone-400">
+            {t("Página {{page}} de {{total}}", { page: currentPage, total: pageCount })}
+          </span>
+          <button
+            type="button"
+            disabled={currentPage === pageCount}
+            onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+            className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold disabled:opacity-40"
+          >
+            {t("Seguinte")}
+          </button>
+        </nav>
+      )}
       {selected && (
         <AddMealModal recipe={selected} onClose={() => setSelected(null)} />
       )}

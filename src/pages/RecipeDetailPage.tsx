@@ -230,31 +230,45 @@ export default function RecipeDetailPage() {
 
 function RecipeReviews({ reviews, userId, onSave, onDelete }: { reviews: ReturnType<typeof useMeals>["recipeReviews"]; userId: string; onSave: (rating: number, comment: string) => Promise<void>; onDelete: (id: string) => Promise<void> }) {
   const { t, i18n } = useTranslation();
+  const reviewsPerPage = 5;
   const ownReview = reviews.find((review) => review.userId === userId);
   const [rating, setRating] = useState(ownReview?.rating ?? 0);
   const [comment, setComment] = useState(ownReview?.comment ?? "");
+  const [isEditing, setIsEditing] = useState(!ownReview);
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const average = reviews.length ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length : 0;
+  const orderedReviews = [...reviews].sort((first, second) => {
+    const firstIsOwn = first.userId === userId;
+    const secondIsOwn = second.userId === userId;
+    if (firstIsOwn !== secondIsOwn) return firstIsOwn ? -1 : 1;
+    return new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime();
+  });
+  const average = orderedReviews.length ? orderedReviews.reduce((sum, review) => sum + review.rating, 0) / orderedReviews.length : 0;
+  const pageCount = Math.max(1, Math.ceil(orderedReviews.length / reviewsPerPage));
+  const currentPage = Math.min(page, pageCount);
+  const visibleReviews = orderedReviews.slice((currentPage - 1) * reviewsPerPage, currentPage * reviewsPerPage);
   const save = async (event: FormEvent) => {
     event.preventDefault();
     if (!rating) { setMessage({ type: "error", text: t("Escolhe uma avaliação entre 1 e 5 estrelas.") }); return; }
     setSaving(true); setMessage(null);
-    try { await onSave(rating, comment); setMessage({ type: "success", text: t("Avaliação guardada com sucesso.") }); }
+    try { await onSave(rating, comment); setIsEditing(false); setMessage({ type: "success", text: t("Avaliação guardada com sucesso.") }); }
     catch (reason) { setMessage({ type: "error", text: reason instanceof Error ? reason.message : t("Não foi possível guardar a avaliação.") }); }
     finally { setSaving(false); }
   };
   const remove = async () => {
     if (!ownReview || !window.confirm(t("Apagar a tua avaliação?"))) return;
     setSaving(true); setMessage(null);
-    try { await onDelete(ownReview.id); setRating(0); setComment(""); setMessage({ type: "success", text: t("Avaliação apagada.") }); }
+    try { await onDelete(ownReview.id); setRating(0); setComment(""); setIsEditing(true); setMessage({ type: "success", text: t("Avaliação apagada.") }); }
     catch (reason) { setMessage({ type: "error", text: reason instanceof Error ? reason.message : t("Não foi possível apagar a avaliação.") }); }
     finally { setSaving(false); }
   };
   return <section className="mt-10 border-t border-white/10 pt-8">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-bold">{t("Avaliações")}</h2><p className="mt-1 text-sm text-stone-400">{reviews.length ? t("{{average}} de 5 · {{count}} avaliação(ões)", { average: average.toFixed(1), count: reviews.length }) : t("Ainda não existem avaliações.")}</p></div>{reviews.length > 0 && <div className="flex items-center gap-1 text-amber-300"><Star size={19} fill="currentColor" /><strong>{average.toFixed(1)}</strong></div>}</div>
-    <form onSubmit={save} className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5"><p className="font-bold">{t(ownReview ? "Editar a tua avaliação" : "Avalia esta receita")}</p><div className="mt-3 flex gap-1">{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => setRating(value)} className="rounded-lg p-1 text-amber-300 transition hover:scale-110" aria-label={t("{{count}} estrelas", { count: value })}><Star size={27} fill={value <= rating ? "currentColor" : "none"} /></button>)}</div><label className="mt-4 block text-sm font-semibold">{t("Comentário (opcional)")}<textarea value={comment} onChange={(event) => setComment(event.target.value)} maxLength={1000} className="input mt-2 min-h-24 resize-y" placeholder={t("Partilha a tua opinião sobre esta receita...")} /></label><div className="mt-4 flex flex-wrap gap-3"><button disabled={saving || !rating} className="rounded-xl bg-leaf-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60">{saving ? t("A guardar...") : t("Guardar avaliação")}</button>{ownReview && <button type="button" disabled={saving} onClick={() => void remove()} className="rounded-xl border border-rose-400/30 px-4 py-2.5 text-sm font-bold text-rose-300 disabled:opacity-60">{t("Apagar avaliação")}</button>}</div>{message && <p role={message.type === "error" ? "alert" : "status"} className={`mt-4 text-sm font-semibold ${message.type === "success" ? "text-emerald-300" : "text-rose-300"}`}>{message.text}</p>}</form>
-    <div className="mt-5 space-y-3">{reviews.length ? reviews.map((review) => <article key={review.id} className="rounded-2xl border border-white/10 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-bold">{review.userId === userId ? t("Tu") : t("Utilizador")}</p><p className="mt-1 flex items-center gap-1 text-sm text-amber-300"><Star size={15} fill="currentColor" /> {review.rating} / 5</p></div><time className="text-xs text-stone-400">{new Date(review.createdAt).toLocaleDateString(i18n.language.startsWith("en") ? "en-GB" : "pt-PT")}</time></div>{review.comment && <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-stone-300">{review.comment}</p>}</article>) : <p className="rounded-2xl bg-white/5 p-4 text-sm text-stone-400">{t("Sê a primeira pessoa a avaliar esta receita.")}</p>}</div>
+    {isEditing && <form onSubmit={save} className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5"><p className="font-bold">{t(ownReview ? "Editar a tua avaliação" : "Avalia esta receita")}</p><div className="mt-3 flex gap-1">{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => setRating(value)} className="rounded-lg p-1 text-amber-300 transition hover:scale-110" aria-label={t("{{count}} estrelas", { count: value })}><Star size={27} fill={value <= rating ? "currentColor" : "none"} /></button>)}</div><label className="mt-4 block text-sm font-semibold">{t("Comentário (opcional)")}<textarea value={comment} onChange={(event) => setComment(event.target.value)} maxLength={1000} className="input mt-2 min-h-24 resize-y" placeholder={t("Partilha a tua opinião sobre esta receita...")} /></label><div className="mt-4 flex flex-wrap gap-3"><button disabled={saving || !rating} className="rounded-xl bg-leaf-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60">{saving ? t("A guardar...") : t("Guardar avaliação")}</button>{ownReview && <button type="button" disabled={saving} onClick={() => { setRating(ownReview.rating); setComment(ownReview.comment); setIsEditing(false); }} className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-bold disabled:opacity-60">{t("Cancelar")}</button>}</div></form>}
+    {message && <p role={message.type === "error" ? "alert" : "status"} className={`mt-4 text-sm font-semibold ${message.type === "success" ? "text-emerald-300" : "text-rose-300"}`}>{message.text}</p>}
+    <div className="mt-5 space-y-3">{reviews.length ? visibleReviews.map((review) => <article key={review.id} className="rounded-2xl border border-white/10 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-bold">{review.userId === userId ? t("Tu") : t("Utilizador")}</p><p className="mt-1 flex items-center gap-1 text-sm text-amber-300"><Star size={15} fill="currentColor" /> {review.rating} / 5</p></div><div className="flex items-center gap-2"><time className="text-xs text-stone-400">{new Date(review.createdAt).toLocaleDateString(i18n.language.startsWith("en") ? "en-GB" : "pt-PT")}</time>{review.userId === userId && <><button type="button" onClick={() => { setRating(review.rating); setComment(review.comment); setIsEditing(true); }} className="rounded-lg p-2 text-stone-400 hover:bg-white/5 hover:text-white" aria-label={t("Editar a tua avaliação")}><Pencil size={16} /></button><button type="button" onClick={() => void remove()} className="rounded-lg p-2 text-rose-300 hover:bg-rose-500/10" aria-label={t("Apagar avaliação")}><Trash2 size={16} /></button></>}</div></div>{review.comment && <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-stone-300">{review.comment}</p>}</article>) : <p className="rounded-2xl bg-white/5 p-4 text-sm text-stone-400">{t("Sê a primeira pessoa a avaliar esta receita.")}</p>}</div>
+    {reviews.length > reviewsPerPage && <div className="mt-5 flex items-center justify-between gap-3"><button type="button" disabled={currentPage === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold disabled:opacity-40">{t("Anterior")}</button><p className="text-sm text-stone-400">{t("Página {{page}} de {{total}}", { page: currentPage, total: pageCount })}</p><button type="button" disabled={currentPage === pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))} className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold disabled:opacity-40">{t("Seguinte")}</button></div>}
   </section>;
 }
 

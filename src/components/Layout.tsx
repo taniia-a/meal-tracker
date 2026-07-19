@@ -1,5 +1,5 @@
-import { CalendarDays, ChefHat, ChartNoAxesCombined, LayoutDashboard, LogOut, Menu, Settings, ShoppingCart, X } from 'lucide-react';
-import { ReactNode, useState } from 'react';
+import { ArrowUp, CalendarDays, ChefHat, ChartNoAxesCombined, LayoutDashboard, LogOut, Menu, Settings, ShoppingCart, X } from 'lucide-react';
+import { ReactNode, useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { authClient } from '../lib/auth';
@@ -12,8 +12,15 @@ const navigation = [
 
 export default function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const { t, i18n } = useTranslation();
   const session = authClient!.useSession();
+  useEffect(() => {
+    const updateVisibility = () => setShowBackToTop(window.scrollY > 500);
+    updateVisibility();
+    window.addEventListener('scroll', updateVisibility, { passive: true });
+    return () => window.removeEventListener('scroll', updateVisibility);
+  }, []);
   return (
     <div className="min-h-screen bg-cream">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-cream/90 backdrop-blur-xl lg:hidden">
@@ -48,6 +55,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       {open && <button aria-label="Fechar menu" className="fixed inset-0 z-10 bg-ink/20 lg:hidden" onClick={() => setOpen(false)} />}
       <main className="px-5 py-8 lg:ml-72 lg:px-10 lg:py-10">{children}</main>
+      {showBackToTop && <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-5 right-5 z-30 grid h-12 w-12 place-items-center rounded-2xl bg-leaf-600 text-white shadow-lg shadow-leaf-600/30 transition hover:bg-leaf-700 sm:bottom-7 sm:right-7" aria-label={t('Voltar ao topo')} title={t('Voltar ao topo')}><ArrowUp size={21} /></button>}
     </div>
   );
 }

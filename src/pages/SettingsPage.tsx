@@ -3,7 +3,8 @@ import { useMeals } from '../store/MealContext';
 import { useTranslation } from 'react-i18next';
 import NumberInput from '../components/NumberInput';
 import { FormEvent, useEffect, useState } from 'react';
-import { getReminderSettings, ReminderSettings, saveReminderSettings } from '../lib/reminders';
+import { clearReminderSent, getReminderSettings, ReminderSettings, saveReminderSettings } from '../lib/reminders';
+import { nutritionDay } from '../lib/nutrition-day';
 import { showAppNotification } from '../lib/notifications';
 import { subscribeToPush, unsubscribeFromPush } from '../lib/push';
 import { authClient } from '../lib/auth';
@@ -121,7 +122,10 @@ function ReminderSettingsPanel() {
     setFeedback(result === 'granted' ? t('Notificações ativadas com sucesso.') : t('Permite as notificações nas definições do navegador para receber lembretes.'));
   };
   const toggle = (key: 'meals' | 'water' | 'weight') => update({ ...settings, [key]: !settings[key] });
-  const time = (key: 'mealsTime' | 'weightTime', value: string) => update({ ...settings, [key]: value });
+  const time = (key: 'mealsTime' | 'weightTime', value: string) => {
+    if (settings[key] !== value) clearReminderSent(profile.userId, nutritionDay(), key === 'mealsTime' ? 'meals' : 'weight');
+    update({ ...settings, [key]: value });
+  };
   const switchControl = (key: 'meals' | 'water' | 'weight') => <button type="button" role="switch" aria-checked={settings[key]} onClick={() => toggle(key)} className={`h-7 w-12 shrink-0 rounded-full p-1 transition ${settings[key] ? 'bg-leaf-600' : 'bg-white/10'}`}><span className={`block h-5 w-5 rounded-full bg-white transition ${settings[key] ? 'translate-x-5' : ''}`} /></button>;
   const row = (key: 'meals' | 'weight', timeKey: 'mealsTime' | 'weightTime', label: string, description: string) => <div className="border-t border-white/10 py-4"><div className="flex items-start justify-between gap-4"><div className="min-w-0"><p className="font-bold">{t(label)}</p><p className="mt-1 text-sm text-stone-400">{t(description)}</p></div>{switchControl(key)}</div><div className="mt-5 w-full overflow-hidden rounded-2xl border border-white/10 bg-[#141019] focus-within:border-leaf-500 focus-within:ring-4 focus-within:ring-leaf-100"><input className="input !w-full !min-w-0 !border-0 !bg-transparent !shadow-none" type="time" disabled={!settings[key]} value={settings[timeKey]} onChange={(event) => time(timeKey, event.target.value)} /></div></div>;
   const hasActiveReminders = settings.meals || settings.water || settings.weight;

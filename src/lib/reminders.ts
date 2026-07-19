@@ -39,6 +39,10 @@ export function markReminderSent(userId: string, day: string, kind: ReminderKind
   localStorage.setItem(`meal-tracker-reminder-sent-${userId}-${day}-${kind}`, '1');
 }
 
+export function clearReminderSent(userId: string, day: string, kind: ReminderKind) {
+  localStorage.removeItem(`meal-tracker-reminder-sent-${userId}-${day}-${kind}`);
+}
+
 export function canSendRepeatingReminder(userId: string, kind: ReminderKind, intervalMinutes: number) {
   const key = `meal-tracker-reminder-last-${userId}-${kind}`;
   const last = Number(localStorage.getItem(key) || 0);

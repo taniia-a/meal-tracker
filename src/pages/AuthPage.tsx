@@ -29,11 +29,6 @@ export default function AuthPage() {
 
       if (result.error) {
         setError(t(translateAuthError(result.error.message)));
-      } else {
-        // In iOS standalone PWAs the auth adapter does not always notify the
-        // current React tree after writing the session cookie. A navigation
-        // makes the app read the freshly created session immediately.
-        window.setTimeout(() => window.location.replace('/'), 150);
       }
     } catch {
       setError(t('Não foi possível contactar o serviço de autenticação. Tenta novamente.'));

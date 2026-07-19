@@ -19,7 +19,10 @@ export default function DashboardPage() {
   const total = sumMacros(todayEntries);
   const remaining = Math.max(goals.calories - total.calories, 0);
   const dinnerMissing = !todayEntries.some((entry) => entry.mealType === 'Jantar');
-  const suggestions = dinnerMissing ? recipes.filter((recipe) => recipe.category === 'Almoço/Jantar').map((recipe) => {
+  const normaliseIngredient = (value: string) => value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  const dislikedIngredients = profile.dislikedIngredients.map(normaliseIngredient).filter(Boolean);
+  const hasDislikedIngredient = (ingredients: string[]) => ingredients.some((ingredient) => dislikedIngredients.some((disliked) => normaliseIngredient(ingredient).includes(disliked) || disliked.includes(normaliseIngredient(ingredient))));
+  const suggestions = dinnerMissing ? recipes.filter((recipe) => recipe.category === 'Almoço/Jantar' && !hasDislikedIngredient([...recipe.ingredients, ...recipe.ingredientsEn])).map((recipe) => {
     const macroScore = Math.abs(Math.max(goals.protein - total.protein, 0) - recipe.protein) / Math.max(goals.protein, 1)
       + Math.abs(Math.max(goals.carbs - total.carbs, 0) - recipe.carbs) / Math.max(goals.carbs, 1)
       + Math.abs(Math.max(goals.fat - total.fat, 0) - recipe.fat) / Math.max(goals.fat, 1);

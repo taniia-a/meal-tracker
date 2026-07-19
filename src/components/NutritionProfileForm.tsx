@@ -9,6 +9,7 @@ interface Props {
   initialProfile?: NutritionProfileInput;
   initialGoals?: NutritionGoals;
   initialGoalMode?: GoalMode;
+  showIngredientPreferences?: boolean;
   submitLabel: string;
   onSave: (profile: NutritionProfileInput, goals: NutritionGoals, goalMode: GoalMode) => Promise<void>;
 }
@@ -21,9 +22,10 @@ const defaults: NutritionProfileInput = {
   weightKg: 65,
   activityLevel: 'moderate',
   nutritionGoal: 'maintain',
+  dislikedIngredients: [],
 };
 
-export default function NutritionProfileForm({ initialProfile, initialGoals, initialGoalMode, submitLabel, onSave }: Props) {
+export default function NutritionProfileForm({ initialProfile, initialGoals, initialGoalMode, showIngredientPreferences = false, submitLabel, onSave }: Props) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState(initialProfile ?? defaults);
   const calculated = useMemo(() => calculateNutrition(profile), [profile]);
@@ -60,6 +62,7 @@ export default function NutritionProfileForm({ initialProfile, initialGoals, ini
       <Field label="Nível de atividade"><select className="input mt-2" value={profile.activityLevel} onChange={(e) => setProfile({ ...profile, activityLevel: e.target.value as NutritionProfileInput['activityLevel'] })}><option value="sedentary">{t('Sedentário')}</option><option value="light">{t('Ligeiramente ativo (1–3 dias/semana)')}</option><option value="moderate">{t('Moderadamente ativo (3–5 dias/semana)')}</option><option value="very-active">{t('Muito ativo (6–7 dias/semana)')}</option><option value="extra-active">{t('Extremamente ativo')}</option></select></Field>
       <Field label="Objetivo"><select className="input mt-2" value={profile.nutritionGoal} onChange={(e) => setProfile({ ...profile, nutritionGoal: e.target.value as NutritionProfileInput['nutritionGoal'] })}><option value="lose">{t('Perder peso gradualmente')}</option><option value="maintain">{t('Manter o peso')}</option><option value="gain">{t('Ganhar peso gradualmente')}</option></select></Field>
     </div>
+    {showIngredientPreferences && <fieldset className="rounded-3xl border border-white/10 bg-white/5 p-5"><legend className="px-1 text-sm font-bold">{t('Ingredientes a evitar')}</legend><p className="mt-1 text-xs text-stone-400">{t('Diz-nos ingredientes de que não gostas para não os incluirmos nas sugestões. Podes alterar mais tarde nas definições.')}</p><textarea className="input mt-4 min-h-24 resize-y" value={profile.dislikedIngredients.join(', ')} onChange={(event) => setProfile({ ...profile, dislikedIngredients: event.target.value.split(',').map((item) => item.trim()).filter(Boolean) })} placeholder={t('Ex.: cogumelos, atum, coentros')} /></fieldset>}
 
     <fieldset>
       <legend className="text-sm font-bold">{t('Como queres definir os teus objetivos diários?')}</legend>

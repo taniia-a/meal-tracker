@@ -105,6 +105,7 @@ export interface NutritionProfileInput {
   weightKg: number;
   activityLevel: ActivityLevel;
   nutritionGoal: NutritionGoal;
+  dislikedIngredients: string[];
 }
 
 export interface NutritionProfile extends NutritionProfileInput {
@@ -113,4 +114,5 @@ export interface NutritionProfile extends NutritionProfileInput {
   goalMode: GoalMode;
   goals: NutritionGoals;
   waterGoalMl: number;
+  dislikedIngredients: string[];
 }

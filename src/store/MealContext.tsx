@@ -44,6 +44,7 @@ interface MealContextValue {
   ) => Promise<void>;
   syncProgressWeight: (weightKg: number) => Promise<void>;
   updateWaterGoal: (waterGoalMl: number) => Promise<void>;
+  updateDislikedIngredients: (ingredients: string[]) => Promise<void>;
   adjustWater: (amountMl: number, entryDate?: string) => Promise<void>;
   removeWater: (entryId: string) => Promise<void>;
   saveRecipe: (recipe: RecipeInput, recipeId?: string) => Promise<void>;
@@ -86,6 +87,12 @@ const normaliseRecipeName = (value: string) =>
     .toLocaleLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+const normaliseIngredientName = (value: string) =>
+  value
+    .trim()
+    .toLocaleLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 const recipeColumns =
   "id, owner_user_id, is_public, image_url, name, name_en, category, taste, instructions, instructions_en, notes, notes_en, prep_minutes, servings, calories, protein, carbs, fat";
 
@@ -123,7 +130,7 @@ export function MealProvider({
         .from("profiles")
         .upsert({ user_id: userId }, { onConflict: "user_id" })
         .select(
-          "user_id, calorie_goal, protein_goal, carbs_goal, fat_goal, water_goal_ml, birth_year, metabolic_sex, height_cm, weight_kg, activity_level, nutrition_goal, goal_mode, onboarding_completed",
+          "user_id, calorie_goal, protein_goal, carbs_goal, fat_goal, water_goal_ml, disliked_ingredients, birth_year, metabolic_sex, height_cm, weight_kg, activity_level, nutrition_goal, goal_mode, onboarding_completed",
         )
         .single();
 
@@ -153,6 +160,7 @@ export function MealProvider({
           onboardingCompleted: Boolean(data.onboarding_completed),
           goals: loadedGoals,
           waterGoalMl: Number(data.water_goal_ml || 2000),
+          dislikedIngredients: Array.isArray(data.disliked_ingredients) ? data.disliked_ingredients : [],
         });
       }
 
@@ -293,6 +301,7 @@ export function MealProvider({
         weight_kg: input.weightKg,
         activity_level: input.activityLevel,
         nutrition_goal: input.nutritionGoal,
+        disliked_ingredients: input.dislikedIngredients,
         goal_mode: goalMode,
         calorie_goal: nextGoals.calories,
         protein_goal: nextGoals.protein,
@@ -306,7 +315,7 @@ export function MealProvider({
       })
       .eq("user_id", userId)
       .select(
-        "user_id, calorie_goal, protein_goal, carbs_goal, fat_goal, water_goal_ml, birth_year, metabolic_sex, height_cm, weight_kg, activity_level, nutrition_goal, goal_mode, onboarding_completed",
+        "user_id, calorie_goal, protein_goal, carbs_goal, fat_goal, water_goal_ml, disliked_ingredients, birth_year, metabolic_sex, height_cm, weight_kg, activity_level, nutrition_goal, goal_mode, onboarding_completed",
       )
       .single();
 
@@ -353,6 +362,7 @@ export function MealProvider({
       onboardingCompleted: Boolean(data.onboarding_completed),
       goals: savedGoals,
       waterGoalMl: Number(data.water_goal_ml || 2000),
+      dislikedIngredients: Array.isArray(data.disliked_ingredients) ? data.disliked_ingredients : profile?.dislikedIngredients ?? [],
     });
   };
 
@@ -366,6 +376,24 @@ export function MealProvider({
       .single();
     if (error || !data) throw new Error(error?.message || "Não foi possível guardar o objetivo de água.");
     setProfile((current) => current ? { ...current, waterGoalMl: Number(data.water_goal_ml) } : current);
+  };
+
+  const updateDislikedIngredients = async (ingredients: string[]) => {
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const uniqueIngredients = new Map<string, string>();
+    for (const ingredient of ingredients) {
+      const key = normaliseIngredientName(ingredient);
+      if (key) uniqueIngredients.set(key, ingredient.trim());
+    }
+    const cleaned = [...uniqueIngredients.values()];
+    const { data, error } = await neonClient
+      .from("profiles")
+      .update({ disliked_ingredients: cleaned, updated_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .select("disliked_ingredients")
+      .single();
+    if (error || !data) throw new Error(error?.message || "Não foi possível guardar os ingredientes a evitar.");
+    setProfile((current) => current ? { ...current, dislikedIngredients: Array.isArray(data.disliked_ingredients) ? data.disliked_ingredients : [] } : current);
   };
 
   const adjustWater = async (amountMl: number, requestedDate = localToday()) => {
@@ -726,6 +754,7 @@ export function MealProvider({
         updateProfile,
         syncProgressWeight,
         updateWaterGoal,
+        updateDislikedIngredients,
         adjustWater,
         removeWater,
         saveRecipe,

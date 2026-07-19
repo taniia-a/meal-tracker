@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   activity_level TEXT CHECK (activity_level IN ('sedentary', 'light', 'moderate', 'very-active', 'extra-active')),
   nutrition_goal TEXT CHECK (nutrition_goal IN ('lose', 'maintain', 'gain')),
   goal_mode TEXT NOT NULL DEFAULT 'calculated' CHECK (goal_mode IN ('calculated', 'manual')),
+  disliked_ingredients TEXT[] NOT NULL DEFAULT '{}',
   onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -34,6 +35,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS activity_level TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS nutrition_goal TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS goal_mode TEXT NOT NULL DEFAULT 'calculated';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS disliked_ingredients TEXT[] NOT NULL DEFAULT '{}';
 
 -- Receitas são globais: qualquer utilizador autenticado pode consultá-las.
 -- A criação/edição será feita posteriormente por uma API de administração.

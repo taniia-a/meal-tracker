@@ -9,6 +9,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Sparkles,
   Trash2,
   Utensils,
 } from "lucide-react";
@@ -18,7 +19,7 @@ import { Link } from "react-router-dom";
 import AddMealModal from "../components/AddMealModal";
 import { recipeIngredients, recipeName } from "../lib/recipe-language";
 import { useMeals } from "../store/MealContext";
-import { Recipe, RecipeInput } from "../types";
+import { MealEntry, Recipe, RecipeInput, RecipeReview } from "../types";
 
 const categories = ["Todas", "Pequeno Almoço", "Almoço/Jantar", "Snacks", "Sobremesas"];
 const tastes = ["Todas", "Doce", "Salgada"] as const;
@@ -41,6 +42,8 @@ export default function RecipesPage() {
     deleteRecipe,
     saveRecipe,
     toggleFavorite,
+    entries,
+    recipeReviews,
   } = useMeals();
   const { t, i18n } = useTranslation();
   const [query, setQuery] = useState("");
@@ -53,6 +56,7 @@ export default function RecipesPage() {
   const [success, setSuccess] = useState("");
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [isSurpriseOpen, setIsSurpriseOpen] = useState(false);
 
   const filtered = useMemo(
     () =>
@@ -204,12 +208,7 @@ export default function RecipesPage() {
             {t("Pesquisa pelo nome da receita ou por um ingrediente.")}
           </p>
         </div>
-        <Link
-          to="/receitas/nova"
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white"
-        >
-          <Plus size={18} /> {t("Nova receita")}
-        </Link>
+        <div className="flex flex-col gap-3 sm:flex-row"><button type="button" onClick={() => setIsSurpriseOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-purple-400/40 px-5 py-3 font-bold text-purple-200 hover:bg-purple-500/10"><Sparkles size={18} /> {t("Surpreende-me")}</button><Link to="/receitas/nova" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white"><Plus size={18} /> {t("Nova receita")}</Link></div>
       </div>
 
       <aside className="mt-7 rounded-3xl border border-leaf-500/20 bg-leaf-500/10 p-5 text-sm leading-relaxed text-stone-300">
@@ -500,8 +499,39 @@ export default function RecipesPage() {
       {selected && (
         <AddMealModal recipe={selected} onClose={() => setSelected(null)} />
       )}
+      {isSurpriseOpen && <SurpriseMeModal recipes={recipes} entries={entries} reviews={recipeReviews} dislikedIngredients={profile.dislikedIngredients} calorieGoal={profile.goals.calories} language={i18n.language} onClose={() => setIsSurpriseOpen(false)} />}
     </div>
   );
+}
+
+type SurpriseMealType = "Pequeno-almoço" | "Almoço" | "Lanche" | "Jantar";
+function SurpriseMeModal({ recipes, entries, reviews, dislikedIngredients, calorieGoal, language, onClose }: { recipes: Recipe[]; entries: MealEntry[]; reviews: RecipeReview[]; dislikedIngredients: string[]; calorieGoal: number; language: string; onClose: () => void }) {
+  const { t } = useTranslation();
+  const [mealType, setMealType] = useState<SurpriseMealType>("Almoço");
+  const [calories, setCalories] = useState(Math.round(calorieGoal * 0.35));
+  const [version, setVersion] = useState(0);
+  const suggested = useMemo(() => chooseSurpriseRecipe(recipes, entries, reviews, dislikedIngredients, mealType, calories, version), [recipes, entries, reviews, dislikedIngredients, mealType, calories, version]);
+  const defaults: Record<SurpriseMealType, number> = { "Pequeno-almoço": 0.25, "Almoço": 0.35, "Lanche": 0.15, "Jantar": 0.35 };
+  return <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-ink/50 p-5 backdrop-blur-sm"><section className="card my-5 w-full max-w-lg p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-semibold text-purple-300">{t("Sugestão personalizada")}</p><h2 className="mt-1 text-2xl font-extrabold">{t("Surpreende-me")}</h2><p className="mt-2 text-sm leading-relaxed text-stone-400">{t("Descobre uma receita que não preparas há pelo menos 4 semanas.")}</p></div><button type="button" onClick={onClose} className="rounded-xl p-2 hover:bg-white/5" aria-label={t("Cancelar")}>×</button></div><div className="mt-5 grid gap-3 sm:grid-cols-2"><label className="text-sm font-semibold">{t("Tipo de refeição")}<select className="input mt-2" value={mealType} onChange={(event) => { const next = event.target.value as SurpriseMealType; setMealType(next); setCalories(Math.round(calorieGoal * defaults[next])); }}>{(["Pequeno-almoço", "Almoço", "Lanche", "Jantar"] as SurpriseMealType[]).map((item) => <option key={item} value={item}>{t(item)}</option>)}</select></label><label className="text-sm font-semibold">{t("Calorias máximas")}<input className="input mt-2" type="number" min="1" step="1" value={calories} onChange={(event) => setCalories(Number(event.target.value))} /></label></div>{suggested ? <article className="mt-6 overflow-hidden rounded-2xl border border-purple-400/20 bg-purple-500/10"><div className="flex gap-4 p-4">{suggested.recipe.imageUrl ? <img src={suggested.recipe.imageUrl} alt={recipeName(suggested.recipe, language)} className="h-24 w-24 rounded-xl object-cover" /> : <div className="grid h-24 w-24 shrink-0 place-items-center rounded-xl bg-purple-500/20 text-purple-200"><Utensils size={30} /></div>}<div className="min-w-0"><p className="text-xs font-bold text-purple-300">{suggested.isNew ? t("Ainda não experimentaste") : t("Está na altura de voltar a preparar")}</p><h3 className="mt-1 truncate text-lg font-extrabold">{recipeName(suggested.recipe, language)}</h3><p className="mt-2 text-sm text-stone-300">{Math.round(suggested.recipe.calories)} kcal · P {Math.round(suggested.recipe.protein)}g</p>{suggested.averageRating && <p className="mt-1 text-xs text-amber-300">★ {suggested.averageRating.toFixed(1)} · {t("bem avaliada")}</p>}</div></div><div className="grid grid-cols-2 border-t border-white/10"><Link to={`/receitas/${suggested.recipe.id}`} onClick={onClose} className="p-3 text-center text-sm font-bold hover:bg-white/5">{t("Ver receita")}</Link><button type="button" onClick={() => setVersion((current) => current + 1)} className="border-l border-white/10 p-3 text-sm font-bold hover:bg-white/5">{t("Outra sugestão")}</button></div></article> : <p className="mt-6 rounded-2xl bg-white/5 p-5 text-sm text-stone-400">{t("Não encontrámos uma receita que cumpra estes critérios. Experimenta aumentar as calorias máximas ou rever os ingredientes a evitar.")}</p>}<button type="button" onClick={onClose} className="mt-6 w-full rounded-2xl border border-white/15 px-5 py-3 font-bold hover:bg-white/5">{t("Fechar")}</button></section></div>;
+}
+
+function chooseSurpriseRecipe(recipes: Recipe[], entries: MealEntry[], reviews: RecipeReview[], dislikedIngredients: string[], mealType: SurpriseMealType, maxCalories: number, version: number) {
+  const normalise = (value: string) => value.toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const fourWeeksAgo = new Date(); fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+  const cutoff = `${fourWeeksAgo.getFullYear()}-${String(fourWeeksAgo.getMonth() + 1).padStart(2, "0")}-${String(fourWeeksAgo.getDate()).padStart(2, "0")}`;
+  const lastUsed = new Map<string, string>();
+  for (const entry of entries) if (entry.recipeId && (!lastUsed.get(entry.recipeId) || entry.date > lastUsed.get(entry.recipeId)!)) lastUsed.set(entry.recipeId, entry.date);
+  const categoryMatches = (recipe: Recipe) => mealType === "Pequeno-almoço" ? recipe.category === "Pequeno Almoço" : mealType === "Lanche" ? ["Snacks", "Sobremesas"].includes(recipe.category) : recipe.category === "Almoço/Jantar";
+  const disliked = dislikedIngredients.map(normalise).filter(Boolean);
+  const hasDislikedIngredient = (recipe: Recipe) => [...recipe.ingredients, ...recipe.ingredientsEn].some((ingredient) => disliked.some((item) => normalise(ingredient).includes(item) || item.includes(normalise(ingredient))));
+  const eligible = recipes.filter((recipe) => categoryMatches(recipe) && recipe.calories <= maxCalories && recipe.calories >= maxCalories * 0.45 && !hasDislikedIngredient(recipe) && (!lastUsed.get(recipe.id) || lastUsed.get(recipe.id)! < cutoff));
+  const untried = eligible.filter((recipe) => !lastUsed.has(recipe.id));
+  const stale = eligible.filter((recipe) => lastUsed.has(recipe.id));
+  const pool = untried.length && (!stale.length || (version % 4 === 0 && Math.random() < 0.25)) ? untried : stale.length ? stale : untried;
+  const averageRating = (recipeId: string) => { const ratings = reviews.filter((review) => review.recipeId === recipeId); return ratings.length ? ratings.reduce((sum, review) => sum + review.rating, 0) / ratings.length : 0; };
+  const ranked = pool.map((recipe) => ({ recipe, rating: averageRating(recipe.id) })).sort((first, second) => second.rating - first.rating || Math.random() - 0.5).slice(0, 8);
+  const choice = ranked.length ? ranked[version % ranked.length] : null;
+  return choice ? { recipe: choice.recipe, averageRating: choice.rating || null, isNew: !lastUsed.has(choice.recipe.id) } : null;
 }
 
 function Macro({ value, label }: { value: number; label: string }) {

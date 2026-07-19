@@ -18,6 +18,7 @@ import {
   NutritionProfileInput,
   Recipe,
   RecipeInput,
+  RecipeReview,
   RecipeTaste,
   WaterEntry,
 } from "../types";
@@ -28,6 +29,7 @@ import { nutritionDay } from "../lib/nutrition-day";
 interface MealContextValue {
   recipes: Recipe[];
   favoriteRecipeIds: string[];
+  recipeReviews: RecipeReview[];
   isRecipesLoading: boolean;
   entries: MealEntry[];
   goals: NutritionGoals;
@@ -47,6 +49,8 @@ interface MealContextValue {
   saveRecipe: (recipe: RecipeInput, recipeId?: string) => Promise<void>;
   deleteRecipe: (recipeId: string) => Promise<void>;
   toggleFavorite: (recipeId: string) => Promise<void>;
+  saveRecipeReview: (recipeId: string, rating: number, comment: string) => Promise<void>;
+  deleteRecipeReview: (reviewId: string) => Promise<void>;
   addMeal: (
     recipe: Recipe,
     mealType: MealType,
@@ -95,6 +99,7 @@ export function MealProvider({
   const { t } = useTranslation();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [favoriteRecipeIds, setFavoriteRecipeIds] = useState<string[]>([]);
+  const [recipeReviews, setRecipeReviews] = useState<RecipeReview[]>([]);
   const [isRecipesLoading, setIsRecipesLoading] = useState(true);
   const [entries, setEntries] = useState<MealEntry[]>([]);
   const [goals, setGoals] = useState<NutritionGoals>(defaultGoals);
@@ -227,9 +232,20 @@ export function MealProvider({
         setIsRecipesLoading(false);
         return;
       }
+      const reviewsResult = await neonClient
+        .from("recipe_reviews")
+        .select("id, user_id, recipe_id, rating, comment, created_at, updated_at")
+        .order("created_at", { ascending: false });
+      if (!isActive) return;
+      if (reviewsResult.error) {
+        setProfileError(reviewsResult.error.message);
+        setIsRecipesLoading(false);
+        return;
+      }
       setFavoriteRecipeIds(
         (favoritesResult.data ?? []).map((item) => item.recipe_id),
       );
+      setRecipeReviews((reviewsResult.data ?? []).map(mapRecipeReview));
       const loadedRecipes = (recipeRows ?? []).map((row) =>
         mapRecipe(
           row,
@@ -529,6 +545,26 @@ export function MealProvider({
     }
   };
 
+  const saveRecipeReview = async (recipeId: string, rating: number, comment: string) => {
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new Error("Escolhe uma avaliação entre 1 e 5 estrelas.");
+    const { data, error } = await neonClient
+      .from("recipe_reviews")
+      .upsert({ user_id: userId, recipe_id: recipeId, rating, comment: comment.trim() || null, updated_at: new Date().toISOString() }, { onConflict: "user_id,recipe_id" })
+      .select("id, user_id, recipe_id, rating, comment, created_at, updated_at")
+      .single();
+    if (error || !data) throw new Error(error?.message || "Não foi possível guardar a avaliação.");
+    const review = mapRecipeReview(data);
+    setRecipeReviews((current) => [...current.filter((item) => item.id !== review.id && !(item.userId === userId && item.recipeId === recipeId)), review]);
+  };
+
+  const deleteRecipeReview = async (reviewId: string) => {
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const { error } = await neonClient.from("recipe_reviews").delete().eq("id", reviewId);
+    if (error) throw new Error(error.message);
+    setRecipeReviews((current) => current.filter((review) => review.id !== reviewId));
+  };
+
   const addMeal = async (
     recipe: Recipe,
     mealType: MealType,
@@ -679,6 +715,7 @@ export function MealProvider({
       value={{
         recipes,
         favoriteRecipeIds,
+        recipeReviews,
         isRecipesLoading,
         entries,
         goals,
@@ -694,6 +731,8 @@ export function MealProvider({
         saveRecipe,
         deleteRecipe,
         toggleFavorite,
+        saveRecipeReview,
+        deleteRecipeReview,
         addMeal,
         addManualMeal,
         updateManualMeal,
@@ -785,6 +824,20 @@ interface WaterEntryRow {
   entry_date: string;
   amount_ml: number | string;
   created_at: string;
+}
+
+interface RecipeReviewRow {
+  id: string;
+  user_id: string;
+  recipe_id: string;
+  rating: number | string;
+  comment: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+function mapRecipeReview(row: RecipeReviewRow): RecipeReview {
+  return { id: row.id, userId: row.user_id, recipeId: row.recipe_id, rating: Number(row.rating), comment: row.comment ?? "", createdAt: row.created_at, updatedAt: row.updated_at };
 }
 
 function mapWaterEntry(row: WaterEntryRow): WaterEntry {

@@ -51,6 +51,16 @@ export interface RecipeInput extends Macros {
   isPublic: boolean;
 }
 
+export interface RecipeReview {
+  id: string;
+  recipeId: string;
+  userId: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface MealEntry extends Macros {
   id: string;
   recipeId: string | null;

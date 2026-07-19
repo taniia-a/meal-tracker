@@ -107,6 +107,18 @@ CREATE TABLE IF NOT EXISTS recipe_favorites (
   PRIMARY KEY (user_id, recipe_id)
 );
 
+-- Uma avaliação por utilizador e por receita. O comentário é opcional.
+CREATE TABLE IF NOT EXISTS recipe_reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL DEFAULT (auth.user_id()),
+  recipe_id UUID NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, recipe_id)
+);
+
 CREATE TABLE IF NOT EXISTS weight_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id TEXT NOT NULL DEFAULT (auth.user_id()),
@@ -134,6 +146,7 @@ CREATE INDEX IF NOT EXISTS recipes_name_idx ON recipes (LOWER(name));
 CREATE INDEX IF NOT EXISTS recipe_ingredients_recipe_idx ON recipe_ingredients (recipe_id, position);
 CREATE INDEX IF NOT EXISTS meal_entries_user_date_idx ON meal_entries (user_id, meal_date);
 CREATE INDEX IF NOT EXISTS recipe_favorites_user_idx ON recipe_favorites (user_id);
+CREATE INDEX IF NOT EXISTS recipe_reviews_recipe_idx ON recipe_reviews (recipe_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS weight_entries_user_date_idx ON weight_entries (user_id, measured_on);
 
 -- Cria retroativamente o primeiro registo de peso para perfis já existentes.
@@ -154,6 +167,7 @@ ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recipe_ingredients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE meal_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recipe_favorites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recipe_reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE weight_entries ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS profiles_own_rows ON profiles;
@@ -167,6 +181,8 @@ DROP POLICY IF EXISTS recipe_ingredients_owner_update ON recipe_ingredients;
 DROP POLICY IF EXISTS recipe_ingredients_owner_delete ON recipe_ingredients;
 DROP POLICY IF EXISTS meal_entries_own_rows ON meal_entries;
 DROP POLICY IF EXISTS recipe_favorites_own_rows ON recipe_favorites;
+DROP POLICY IF EXISTS recipe_reviews_authenticated_read ON recipe_reviews;
+DROP POLICY IF EXISTS recipe_reviews_own_rows ON recipe_reviews;
 DROP POLICY IF EXISTS weight_entries_own_rows ON weight_entries;
 
 CREATE POLICY profiles_own_rows ON profiles
@@ -218,6 +234,15 @@ CREATE POLICY recipe_favorites_own_rows ON recipe_favorites
   USING ((SELECT auth.user_id()) = user_id)
   WITH CHECK ((SELECT auth.user_id()) = user_id);
 
+CREATE POLICY recipe_reviews_authenticated_read ON recipe_reviews
+  FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM recipes WHERE recipes.id = recipe_id));
+
+CREATE POLICY recipe_reviews_own_rows ON recipe_reviews
+  FOR ALL TO authenticated
+  USING ((SELECT auth.user_id()) = user_id)
+  WITH CHECK ((SELECT auth.user_id()) = user_id);
+
 CREATE POLICY weight_entries_own_rows ON weight_entries
   FOR ALL TO authenticated
   USING ((SELECT auth.user_id()) = user_id)
@@ -227,6 +252,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON profiles TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON recipes, recipe_ingredients TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON meal_entries TO authenticated;
 GRANT SELECT, INSERT, DELETE ON recipe_favorites TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON recipe_reviews TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON weight_entries TO authenticated;
 
 -- Keep the Data API schema cache in sync after migrations.

@@ -20,6 +20,8 @@ import {
   RecipeInput,
   RecipeReview,
   RecipeTaste,
+  PantryItem,
+  PantryItemInput,
   WaterEntry,
 } from "../types";
 import { calculateNutrition } from "../lib/nutrition";
@@ -37,6 +39,7 @@ interface MealContextValue {
   waterConsumedMl: number;
   waterEntryDay: string;
   waterEntries: WaterEntry[];
+  pantryItems: PantryItem[];
   updateProfile: (
     profile: NutritionProfileInput,
     goals: NutritionGoals,
@@ -47,6 +50,8 @@ interface MealContextValue {
   updateDislikedIngredients: (ingredients: string[]) => Promise<void>;
   adjustWater: (amountMl: number, entryDate?: string) => Promise<void>;
   removeWater: (entryId: string) => Promise<void>;
+  savePantryItem: (item: PantryItemInput, itemId?: string) => Promise<void>;
+  removePantryItem: (itemId: string) => Promise<void>;
   saveRecipe: (recipe: RecipeInput, recipeId?: string) => Promise<void>;
   deleteRecipe: (recipeId: string) => Promise<void>;
   toggleFavorite: (recipeId: string) => Promise<void>;
@@ -116,6 +121,7 @@ export function MealProvider({
   const [waterConsumedMl, setWaterConsumedMl] = useState(0);
   const [waterEntryDay, setWaterEntryDay] = useState(localToday());
   const [waterEntries, setWaterEntries] = useState<WaterEntry[]>([]);
+  const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
   const [profile, setProfile] = useState<NutritionProfile | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState("");
@@ -174,6 +180,17 @@ export function MealProvider({
     return () => {
       isActive = false;
     };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!neonClient) return;
+    let active = true;
+    neonClient.from('pantry_items').select('id, name, quantity, unit, expires_on').eq('user_id', userId).order('expires_on', { ascending: true }).then(({ data, error }) => {
+      if (!active) return;
+      if (error) { setProfileError(error.message); return; }
+      setPantryItems((data ?? []).map(mapPantryItem));
+    });
+    return () => { active = false; };
   }, [userId]);
 
   useEffect(() => {
@@ -596,6 +613,23 @@ export function MealProvider({
     setRecipeReviews((current) => current.filter((review) => review.id !== reviewId));
   };
 
+  const savePantryItem = async (item: PantryItemInput, itemId?: string) => {
+    if (!neonClient) throw new Error('O cliente Neon não está configurado.');
+    const payload = { user_id: userId, name: item.name.trim(), quantity: item.quantity, unit: item.unit, expires_on: item.expiresOn };
+    const query = itemId ? neonClient.from('pantry_items').update(payload).eq('id', itemId) : neonClient.from('pantry_items').insert(payload);
+    const { data, error } = await query.select('id, name, quantity, unit, expires_on').single();
+    if (error || !data) throw new Error(error?.message || 'Não foi possível guardar o artigo em stock.');
+    const saved = mapPantryItem(data);
+    setPantryItems((current) => itemId ? current.map((value) => value.id === itemId ? saved : value) : [...current, saved].sort((a, b) => (a.expiresOn ?? '9999').localeCompare(b.expiresOn ?? '9999')));
+  };
+
+  const removePantryItem = async (itemId: string) => {
+    if (!neonClient) throw new Error('O cliente Neon não está configurado.');
+    const { error } = await neonClient.from('pantry_items').delete().eq('id', itemId);
+    if (error) throw new Error(error.message);
+    setPantryItems((current) => current.filter((item) => item.id !== itemId));
+  };
+
   const addMeal = async (
     recipe: Recipe,
     mealType: MealType,
@@ -806,12 +840,15 @@ export function MealProvider({
         waterConsumedMl,
         waterEntryDay,
         waterEntries,
+        pantryItems,
         updateProfile,
         syncProgressWeight,
         updateWaterGoal,
         updateDislikedIngredients,
         adjustWater,
         removeWater,
+        savePantryItem,
+        removePantryItem,
         saveRecipe,
         deleteRecipe,
         toggleFavorite,
@@ -919,6 +956,8 @@ interface WaterEntryRow {
   created_at: string;
 }
 
+interface PantryItemRow { id: string; name: string; quantity: number | string; unit: string; expires_on: string | null; }
+
 interface RecipeReviewRow {
   id: string;
   user_id: string;
@@ -935,6 +974,10 @@ function mapRecipeReview(row: RecipeReviewRow): RecipeReview {
 
 function mapWaterEntry(row: WaterEntryRow): WaterEntry {
   return { id: row.id, date: row.entry_date, amountMl: Number(row.amount_ml), createdAt: row.created_at };
+}
+
+function mapPantryItem(row: PantryItemRow): PantryItem {
+  return { id: row.id, name: row.name, quantity: Number(row.quantity), unit: row.unit, expiresOn: row.expires_on };
 }
 
 function mapMealEntry(row: MealEntryRow, recipe: Recipe): MealEntry {

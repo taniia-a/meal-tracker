@@ -1,4 +1,4 @@
-import { ArrowUp, CalendarDays, ChefHat, ChartNoAxesCombined, LayoutDashboard, Lightbulb, LogOut, Menu, Settings, ShoppingCart, X } from 'lucide-react';
+import { ArrowUp, CalendarDays, ChefHat, ChartNoAxesCombined, LayoutDashboard, Lightbulb, LogOut, Menu, PackageOpen, Settings, ShoppingCart, X } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +7,7 @@ import { changeLanguage } from '../i18n';
 
 const navigation = [
   { to: '/', label: 'Resumo', icon: LayoutDashboard }, { to: '/receitas', label: 'Receitas', icon: ChefHat },
-  { to: '/diario', label: 'Diário', icon: CalendarDays }, { to: '/compras', label: 'Compras', icon: ShoppingCart }, { to: '/progresso', label: 'Progresso', icon: ChartNoAxesCombined }, { to: '/curiosidade', label: 'Sabias que…?', icon: Lightbulb }, { to: '/definicoes', label: 'Definições', icon: Settings },
+  { to: '/diario', label: 'Diário', icon: CalendarDays }, { to: '/compras', label: 'Compras', icon: ShoppingCart }, { to: '/despensa', label: 'Stock', icon: PackageOpen }, { to: '/progresso', label: 'Progresso', icon: ChartNoAxesCombined }, { to: '/curiosidade', label: 'Sabias que…?', icon: Lightbulb }, { to: '/definicoes', label: 'Definições', icon: Settings },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {

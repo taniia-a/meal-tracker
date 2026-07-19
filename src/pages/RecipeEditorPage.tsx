@@ -3,6 +3,7 @@ import { ArrowLeft, ImagePlus, Minus, Plus, X } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { authClient, getAuthToken } from "../lib/auth";
+import { allowedIngredientUnits } from "../lib/ingredient-units";
 import { useMeals } from "../store/MealContext";
 import { RecipeInput } from "../types";
 import { useTranslation } from "react-i18next";
@@ -35,7 +36,6 @@ const emptyRecipe: RecipeInput = {
 };
 const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
 const maxImageSize = 5 * 1024 * 1024;
-const units = ["g", "kg", "ml", "L", "unidade", "q.b."];
 const normaliseRecipeName = (value: string) => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 export default function RecipeEditorPage() {
@@ -126,13 +126,18 @@ export default function RecipeEditorPage() {
     setPreviewUrl(null);
     setRecipe({ ...recipe, imageUrl: null });
   };
-  const updateIngredient = (index: number, value: string) =>
+  const updateIngredient = (index: number, value: string) => {
+    const allowedUnits = allowedIngredientUnits(value);
     setRecipe({
       ...recipe,
       ingredients: recipe.ingredients.map((item, position) =>
         position === index ? value : item,
       ),
+      ingredientUnits: recipe.ingredientUnits.map((item, position) =>
+        position === index && !allowedUnits.includes(item || "g") ? allowedUnits[0] : item,
+      ),
     });
+  };
   const updateIngredientEn = (index: number, value: string) =>
     setRecipe({
       ...recipe,
@@ -379,12 +384,12 @@ export default function RecipeEditorPage() {
                   />
                   <select
                     className="input"
-                    value={recipe.ingredientUnits[index] || "g"}
+                    value={allowedIngredientUnits(ingredient).includes(recipe.ingredientUnits[index] || "g") ? recipe.ingredientUnits[index] || "g" : allowedIngredientUnits(ingredient)[0]}
                     onChange={(e) =>
                       updateIngredientUnit(index, e.target.value)
                     }
                   >
-                    {units.map((unit) => (
+                    {allowedIngredientUnits(ingredient).map((unit) => (
                       <option key={unit} value={unit}>
                         {t(unit)}
                       </option>

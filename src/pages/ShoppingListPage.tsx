@@ -29,8 +29,9 @@ type IngredientCategory =
   | "Laticínios e ovos"
   | "Carne, peixe e alternativas"
   | "Cereais e padaria"
-  | "Despensa"
-  | "Outros";
+  | "Stock"
+  | "Outros"
+  | "No carrinho";
 
 function ingredientCategory(name: string): IngredientCategory {
   const value = normalise(name);
@@ -59,7 +60,7 @@ function ingredientCategory(name: string): IngredientCategory {
       value,
     )
   )
-    return "Despensa";
+    return "Stock";
   return "Outros";
 }
 
@@ -79,7 +80,7 @@ function measuredIngredient(value: string): MeasuredIngredient | null {
 }
 
 export default function ShoppingListPage() {
-  const { entries, recipes, profile } = useMeals();
+  const { entries, recipes, profile, pantryItems } = useMeals();
   const { t, i18n } = useTranslation();
   const storageKey = `meal-tracker-shopping-checked-${profile.userId}`;
   const [checked, setChecked] = useState<string[]>(() => {
@@ -101,6 +102,27 @@ export default function ShoppingListPage() {
   const [view, setView] = useState<"ingredients" | "recipes">("ingredients");
   const [customItems, setCustomItems] = useState(() => getShoppingCustomItems(profile.userId));
   const [customItemName, setCustomItemName] = useState("");
+  const pantryAmount = (item: { name: string; amount: number | null; unit: string | null }) => {
+    const ingredient = normalise(item.name);
+    const matching = pantryItems.filter((pantryItem) => {
+      const pantryName = normalise(pantryItem.name);
+      return pantryName && (ingredient.includes(pantryName) || pantryName.includes(ingredient));
+    });
+    if (!matching.length || item.amount === null || !item.unit) return matching.length ? Infinity : 0;
+    const toBase = (quantity: number, unit: string) => {
+      const normalizedUnit = unit.toLocaleLowerCase();
+      if (normalizedUnit === 'kg') return { quantity: quantity * 1000, unit: 'g' };
+      if (normalizedUnit === 'l') return { quantity: quantity * 1000, unit: 'ml' };
+      return { quantity, unit: normalizedUnit };
+    };
+    const required = toBase(item.amount, item.unit);
+    const available = matching.reduce((sum, pantryItem) => {
+      const value = toBase(pantryItem.quantity, pantryItem.unit);
+      return value.unit === required.unit ? sum + value.quantity : sum;
+    }, 0);
+    return available;
+  };
+  const isInPantry = (item: { name: string; amount: number | null; unit: string | null }) => item.amount === null || !item.unit ? pantryAmount(item) === Infinity : pantryAmount(item) >= item.amount;
   const planned = useMemo(
     () => entries.filter((entry) => selectedEntryIds.includes(entry.id)),
     [entries, selectedEntryIds],
@@ -238,24 +260,22 @@ export default function ShoppingListPage() {
       "Laticínios e ovos",
       "Carne, peixe e alternativas",
       "Cereais e padaria",
-      "Despensa",
+      "Stock",
       "Outros",
     ];
-    return categories
+    const activeGroups = categories
       .map((category) => ({
         category,
         items: ingredients
-          .filter((item) => ingredientCategory(item.name) === category)
+          .filter((item) => ingredientCategory(item.name) === category && !checked.includes(item.key) && !isInPantry(item))
           .sort((a, b) => {
-            const checkedDifference =
-              Number(checked.includes(a.key)) - Number(checked.includes(b.key));
-            return (
-              checkedDifference || a.name.localeCompare(b.name, i18n.language)
-            );
+            return a.name.localeCompare(b.name, i18n.language);
           }),
       }))
       .filter((group) => group.items.length > 0);
-  }, [ingredients, checked, i18n.language]);
+    const cartItems = ingredients.filter((item) => checked.includes(item.key) || isInPantry(item)).sort((a, b) => a.name.localeCompare(b.name, i18n.language));
+    return cartItems.length ? [...activeGroups, { category: "No carrinho" as IngredientCategory, items: cartItems }] : activeGroups;
+  }, [ingredients, checked, pantryItems, i18n.language]);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(checked));
@@ -292,6 +312,10 @@ export default function ShoppingListPage() {
     return i18n.language.startsWith("en")
       ? `${value} ${unit} ${item.name}`
       : `${value} ${unit} de ${item.name}`;
+  };
+  const shoppingIngredientLabel = (item: { name: string; amount: number | null; unit: string | null }) => {
+    if (item.amount === null || !item.unit) return ingredientLabel(item);
+    return ingredientLabel({ ...item, amount: Math.max(0, item.amount - pantryAmount(item)) });
   };
   const recipeIngredientLabel = (
     ingredient: string,
@@ -383,7 +407,7 @@ export default function ShoppingListPage() {
     groupedIngredients
       .flatMap((group) => [
         t(group.category),
-        ...group.items.map((item) => `• ${ingredientLabel(item)}`),
+        ...group.items.map((item) => `• ${isInPantry(item) ? ingredientLabel(item) : shoppingIngredientLabel(item)}`),
         "",
       ])
       .join("\n")
@@ -510,8 +534,9 @@ export default function ShoppingListPage() {
                   </h2>
                   <div className="divide-y divide-white/10">
                     {group.items.map((item) => {
-                      const done = checked.includes(item.key);
-                      const label = ingredientLabel(item);
+                      const stocked = isInPantry(item);
+                      const done = checked.includes(item.key) || stocked;
+                      const label = stocked ? ingredientLabel(item) : shoppingIngredientLabel(item);
                       return (
                         <label
                           key={item.key}
@@ -538,6 +563,7 @@ export default function ShoppingListPage() {
                                 .map((source) => source.portions ? `${source.name} · ${t("{{count}} porção(ões)", { count: source.portions })}` : source.name)
                                 .join(" · ")}
                             </span>
+                            {stocked && <span className="mt-1 inline-block rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase text-sky-300">{t('Em stock')}</span>}
                           </span>
                           {item.isCustom && <button type="button" onClick={() => removeCustomItem(item.key)} className="ml-auto self-center rounded-xl p-2 text-stone-400 hover:bg-rose-500/10 hover:text-rose-300" aria-label={t("Remover artigo")}><Trash2 size={17} /></button>}
                         </label>

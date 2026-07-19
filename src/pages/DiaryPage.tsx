@@ -10,6 +10,7 @@ import { addShoppingEntryIds } from '../lib/shopping-list';
 import { formatLocalDate, nutritionDay } from '../lib/nutrition-day';
 import { recipeName } from '../lib/recipe-language';
 import { getAuthToken } from '../lib/auth';
+import { pantryRecipeMatch } from '../lib/pantry';
 import RecipeReviewPrompt from '../components/RecipeReviewPrompt';
 
 const types: MealType[] = ['Pequeno-almoço', 'Almoço', 'Lanche', 'Jantar'];
@@ -207,12 +208,12 @@ function RecipePicker({ recipes, onClose, onSelect }: { recipes: Recipe[]; onClo
 type PlannedMeal = { date: string; mealType: MealType; recipe: Recipe; portions: number };
 
 function WeeklyPlanModal({ week, onClose }: { week: string[]; onClose: () => void }) {
-  const { recipes, entries, goals, profile, recipeReviews, addMeal } = useMeals();
+  const { recipes, entries, goals, profile, pantryItems, recipeReviews, addMeal } = useMeals();
   const { t, i18n } = useTranslation();
   const [version, setVersion] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const plan = useMemo(() => buildWeeklyPlan(week, recipes, entries, goals, profile.dislikedIngredients, profile.userId, recipeReviews, version), [week, recipes, entries, goals, profile.dislikedIngredients, profile.userId, recipeReviews, version]);
+  const plan = useMemo(() => buildWeeklyPlan(week, recipes, entries, goals, profile.dislikedIngredients, profile.userId, recipeReviews, pantryItems, version), [week, recipes, entries, goals, profile.dislikedIngredients, profile.userId, recipeReviews, pantryItems, version]);
   const save = async () => {
     setSaving(true); setError('');
     try {
@@ -225,17 +226,17 @@ function WeeklyPlanModal({ week, onClose }: { week: string[]; onClose: () => voi
 }
 
 function DailyPlanModal({ date, onClose }: { date: string; onClose: () => void }) {
-  const { recipes, entries, goals, profile, recipeReviews, addMeal } = useMeals();
+  const { recipes, entries, goals, profile, pantryItems, recipeReviews, addMeal } = useMeals();
   const { t, i18n } = useTranslation();
   const [version, setVersion] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const plan = useMemo(() => buildDailyPlan(date, recipes, entries, goals, profile.dislikedIngredients, profile.userId, recipeReviews, version), [date, recipes, entries, goals, profile.dislikedIngredients, profile.userId, recipeReviews, version]);
+  const plan = useMemo(() => buildDailyPlan(date, recipes, entries, goals, profile.dislikedIngredients, profile.userId, recipeReviews, pantryItems, version), [date, recipes, entries, goals, profile.dislikedIngredients, profile.userId, recipeReviews, pantryItems, version]);
   const save = async () => { setSaving(true); setError(''); try { for (const item of plan) await addMeal(item.recipe, item.mealType, item.portions, item.date); onClose(); } catch (reason) { setError(reason instanceof Error ? reason.message : t('Não foi possível gerar o plano.')); } finally { setSaving(false); } };
   return <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-ink/50 p-5 backdrop-blur-sm"><section className="card my-5 w-full max-w-xl p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-sm font-semibold text-purple-300">{t('Planeamento automático')}</p><h2 className="mt-1 text-2xl font-extrabold">{t('Sugerir dia')}</h2><p className="mt-2 text-sm text-stone-400">{t('Vamos preencher apenas as refeições em falta deste dia, com base nas tuas metas e preferências.')}</p></div><button type="button" onClick={onClose} className="rounded-xl p-2 hover:bg-white/5" aria-label={t('Cancelar')}><X /></button></div><div className="mt-5 rounded-2xl border border-purple-400/20 bg-purple-500/10 p-4 text-sm text-purple-100"><p className="font-bold">{t('{{count}} refeições serão planeadas', { count: plan.length })}</p><p className="mt-1 text-xs text-stone-300">{t('Não alteramos refeições que já existam e ignoramos ingredientes a evitar.')}</p></div>{plan.length ? <div className="mt-5 space-y-2">{plan.map((item) => <div key={item.mealType} className="flex items-center justify-between gap-4 rounded-xl bg-white/5 p-3"><div><p className="font-bold">{i18n.language.startsWith('en') && item.recipe.nameEn ? item.recipe.nameEn : item.recipe.name}</p><p className="mt-1 text-xs text-stone-400">{t(item.mealType)}</p></div><p className="shrink-0 text-sm font-semibold text-stone-300">{item.portions}× · {Math.round(item.recipe.calories * item.portions)} kcal</p></div>)}</div> : <p className="mt-5 rounded-2xl bg-white/5 p-5 text-sm text-stone-400">{t('Não há refeições em falta neste dia ou não encontrámos receitas compatíveis.')}</p>}{error && <p role="alert" className="mt-4 text-sm font-semibold text-rose-300">{error}</p>}<div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" onClick={() => setVersion((current) => current + 1)} disabled={saving || !plan.length} className="rounded-2xl border border-white/15 px-5 py-3 font-bold hover:bg-white/5 disabled:opacity-60">{t('Gerar outra opção')}</button><button type="button" onClick={() => void save()} disabled={saving || !plan.length} className="rounded-2xl bg-leaf-600 px-5 py-3 font-bold text-white disabled:opacity-60">{saving ? t('A guardar...') : t('Criar plano')}</button></div></section></div>;
 }
 
-function buildDailyPlan(date: string, recipes: Recipe[], entries: MealEntry[], goals: NutritionGoals, dislikedIngredients: string[], userId: string, reviews: ReturnType<typeof useMeals>['recipeReviews'], version: number): PlannedMeal[] {
+function buildDailyPlan(date: string, recipes: Recipe[], entries: MealEntry[], goals: NutritionGoals, dislikedIngredients: string[], userId: string, reviews: ReturnType<typeof useMeals>['recipeReviews'], pantryItems: ReturnType<typeof useMeals>['pantryItems'], version: number): PlannedMeal[] {
   if (date < nutritionDay()) return [];
   const normalise = (value: string) => value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   const dislikes = dislikedIngredients.map(normalise).filter(Boolean);
@@ -259,7 +260,7 @@ function buildDailyPlan(date: string, recipes: Recipe[], entries: MealEntry[], g
       return categoryMatches(recipe, mealType) && recipe.calories > 0 && !recent.has(recipe.id) && !planned.has(recipe.id) && !used.has(recipe.id) && !containsDisliked;
     }).map((recipe) => {
       const portions = Math.max(.25, Math.min(4, Math.round(target.calories / recipe.calories * 4) / 4));
-      const score = Math.abs(recipe.protein * portions - target.protein) / Math.max(goals.protein, 1) + Math.abs(recipe.carbs * portions - target.carbs) / Math.max(goals.carbs, 1) + Math.abs(recipe.fat * portions - target.fat) / Math.max(goals.fat, 1) - (ratings.get(recipe.id) ?? 0) * .08;
+      const score = Math.abs(recipe.protein * portions - target.protein) / Math.max(goals.protein, 1) + Math.abs(recipe.carbs * portions - target.carbs) / Math.max(goals.carbs, 1) + Math.abs(recipe.fat * portions - target.fat) / Math.max(goals.fat, 1) - (ratings.get(recipe.id) ?? 0) * .08 - pantryRecipeMatch(recipe, pantryItems).score;
       return { recipe, portions, score };
     }).sort((a, b) => a.score - b.score || ((a.recipe.id.charCodeAt(0) + version) % 7) - ((b.recipe.id.charCodeAt(0) + version) % 7));
     const choice = choices[0];
@@ -270,7 +271,7 @@ function buildDailyPlan(date: string, recipes: Recipe[], entries: MealEntry[], g
   });
 }
 
-function buildWeeklyPlan(week: string[], recipes: Recipe[], entries: MealEntry[], goals: NutritionGoals, dislikedIngredients: string[], userId: string, reviews: ReturnType<typeof useMeals>['recipeReviews'], version: number): PlannedMeal[] {
+function buildWeeklyPlan(week: string[], recipes: Recipe[], entries: MealEntry[], goals: NutritionGoals, dislikedIngredients: string[], userId: string, reviews: ReturnType<typeof useMeals>['recipeReviews'], pantryItems: ReturnType<typeof useMeals>['pantryItems'], version: number): PlannedMeal[] {
   const normalise = (value: string) => value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   const dislikes = dislikedIngredients.map(normalise).filter(Boolean);
   const includesDisliked = (recipe: Recipe) => [...recipe.ingredients, ...recipe.ingredientsEn].some((ingredient) => dislikes.some((item) => normalise(ingredient).includes(item) || item.includes(normalise(ingredient))));
@@ -298,7 +299,7 @@ function buildWeeklyPlan(week: string[], recipes: Recipe[], entries: MealEntry[]
       const candidates = candidateRecipes.map((recipe) => {
         const portions = Math.max(0.25, Math.min(4, Math.round((target.calories / recipe.calories) * 4) / 4));
         const userRating = userRatings.get(recipe.id) ?? 0;
-        const score = Math.abs(recipe.protein * portions - target.protein) / Math.max(goals.protein, 1) + Math.abs(recipe.carbs * portions - target.carbs) / Math.max(goals.carbs, 1) + Math.abs(recipe.fat * portions - target.fat) / Math.max(goals.fat, 1) - userRating * 0.08;
+        const score = Math.abs(recipe.protein * portions - target.protein) / Math.max(goals.protein, 1) + Math.abs(recipe.carbs * portions - target.carbs) / Math.max(goals.carbs, 1) + Math.abs(recipe.fat * portions - target.fat) / Math.max(goals.fat, 1) - userRating * 0.08 - pantryRecipeMatch(recipe, pantryItems).score;
         return { recipe, portions, score };
       }).sort((first, second) => first.score - second.score || ((first.recipe.id.charCodeAt(0) + version) % 7) - ((second.recipe.id.charCodeAt(0) + version) % 7));
       const choice = candidates[0];

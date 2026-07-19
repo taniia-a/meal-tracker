@@ -86,6 +86,21 @@ export interface WaterEntry {
   createdAt: string;
 }
 
+export interface PantryItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  expiresOn: string | null;
+}
+
+export interface PantryItemInput {
+  name: string;
+  quantity: number;
+  unit: string;
+  expiresOn: string | null;
+}
+
 export type NutritionGoals = Macros;
 
 export type MetabolicSex = "female" | "male";

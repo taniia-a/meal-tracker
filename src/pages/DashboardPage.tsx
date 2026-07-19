@@ -5,10 +5,11 @@ import { NutritionProgress, sumMacros } from '../components/NutritionProgress';
 import { useMeals } from '../store/MealContext';
 import { recipeName } from '../lib/recipe-language';
 import { nutritionDay } from '../lib/nutrition-day';
+import { pantryRecipeMatch } from '../lib/pantry';
 import { useState } from 'react';
 
 export default function DashboardPage() {
-  const { entries, goals, recipes, profile, recipeReviews, waterConsumedMl, waterEntryDay, adjustWater } = useMeals();
+  const { entries, goals, recipes, profile, pantryItems, recipeReviews, waterConsumedMl, waterEntryDay, adjustWater } = useMeals();
   const { t, i18n } = useTranslation();
   const [waterError, setWaterError] = useState('');
   const [isUpdatingWater, setIsUpdatingWater] = useState(false);
@@ -38,10 +39,13 @@ export default function DashboardPage() {
     const calorieScore = Math.abs(remaining - recipe.calories) / Math.max(goals.calories, 1);
     const ownRating = userRatings.get(recipe.id) ?? 0;
     const averageRating = averageRatings.get(recipe.id) ?? 0;
+    const pantryMatch = pantryRecipeMatch(recipe, pantryItems);
     const reasons = [t('Compatível com os teus ingredientes a evitar.'), t('Não a consumiste nas últimas 4 semanas.')];
     if (goals.protein > total.protein && recipe.protein >= 20) reasons.push(t('Ajuda a atingir a proteína que te falta hoje.'));
     if (averageRating >= 4) reasons.push(t('Bem avaliada ({{rating}}/5).', { rating: averageRating.toFixed(1) }));
-    return { recipe, score: macroScore + calorieScore - ownRating * 0.08, reasons };
+    if (pantryMatch.expiring.length) reasons.push(t('Usa {{count}} ingrediente(s) com validade próxima.', { count: pantryMatch.expiring.length }));
+    else if (pantryMatch.matching.length) reasons.push(t('Usa ingredientes que tens em stock.'));
+    return { recipe, score: macroScore + calorieScore - ownRating * 0.08 - pantryMatch.score, reasons };
   }).sort((a, b) => a.score - b.score).slice(0, 3) : [];
   const waterProgress = Math.min((todayWaterMl / profile.waterGoalMl) * 100, 100);
   const updateWater = async (amountMl: number) => {

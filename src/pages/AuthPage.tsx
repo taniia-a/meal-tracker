@@ -41,8 +41,9 @@ export default function AuthPage() {
         }
         window.location.replace('/');
       }
-    } catch {
-      setError(t('Não foi possível contactar o serviço de autenticação. Tenta novamente.'));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : undefined;
+      setError(t(translateAuthError(message)));
     } finally {
       setIsSubmitting(false);
     }

@@ -247,21 +247,26 @@ export function MealProvider({
         return;
       }
       const ids = (recipeRows ?? []).map((row) => row.id);
-      const ingredientResult = ids.length
-        ? await neonClient
-            .from("recipe_ingredients")
-            .select(
-              "recipe_id, name, name_en, quantity, unit, is_optional, position",
-            )
-            .in("recipe_id", ids)
-            .order("position")
-        : { data: [], error: null };
-      if (!isActive) return;
-      if (ingredientResult.error) {
-        setProfileError(ingredientResult.error.message);
-        setIsRecipesLoading(false);
-        return;
+      const ingredientRows: any[] = [];
+      // The Data API receives `.in()` filters in the URL. Splitting recipe IDs
+      // avoids exceeding browser/proxy URL limits as the public catalogue grows.
+      for (let start = 0; start < ids.length; start += 50) {
+        const result = await neonClient
+          .from("recipe_ingredients")
+          .select(
+            "recipe_id, name, name_en, quantity, unit, is_optional, position",
+          )
+          .in("recipe_id", ids.slice(start, start + 50))
+          .order("position");
+        if (result.error) {
+          if (!isActive) return;
+          setProfileError(result.error.message);
+          setIsRecipesLoading(false);
+          return;
+        }
+        ingredientRows.push(...(result.data ?? []));
       }
+      if (!isActive) return;
       const favoritesResult = await neonClient
         .from("recipe_favorites")
         .select("recipe_id")
@@ -289,7 +294,7 @@ export function MealProvider({
       const loadedRecipes = (recipeRows ?? []).map((row) =>
         mapRecipe(
           row,
-          (ingredientResult.data ?? []).filter(
+          ingredientRows.filter(
             (item) => item.recipe_id === row.id,
           ),
         ),

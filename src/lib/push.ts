@@ -27,3 +27,12 @@ export async function unsubscribeFromPush() {
   if (token && subscription) await fetch('/api/push-subscription', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, endpoint: subscription.endpoint }) });
   await subscription?.unsubscribe();
 }
+
+export async function sendPushTest() {
+  const token = await getAuthToken();
+  const registration = await navigator.serviceWorker.getRegistration();
+  const subscription = await registration?.pushManager.getSubscription();
+  if (!token || !subscription) throw new Error('Este dispositivo ainda não está subscrito nas notificações push.');
+  const response = await fetch('/api/push-test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, endpoint: subscription.endpoint }) });
+  if (!response.ok) throw new Error((await response.json().catch(() => ({})) as { error?: string }).error ?? 'Não foi possível enviar a notificação push de teste.');
+}

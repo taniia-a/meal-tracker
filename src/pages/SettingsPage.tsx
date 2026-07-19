@@ -5,7 +5,7 @@ import NumberInput from '../components/NumberInput';
 import { FormEvent, useEffect, useState } from 'react';
 import { getReminderSettings, ReminderSettings, saveReminderSettings } from '../lib/reminders';
 import { showAppNotification } from '../lib/notifications';
-import { subscribeToPush, unsubscribeFromPush } from '../lib/push';
+import { sendPushTest, subscribeToPush, unsubscribeFromPush } from '../lib/push';
 
 export default function SettingsPage() {
   const { profile, updateProfile, updateWaterGoal, updateDislikedIngredients } = useMeals();
@@ -55,6 +55,11 @@ function ReminderSettingsPanel() {
   const [feedback, setFeedback] = useState('');
 
   useEffect(() => setSettings(getReminderSettings(profile.userId)), [profile.userId]);
+  useEffect(() => {
+    if (permission === 'granted' && (settings.meals || settings.water || settings.weight)) {
+      void subscribeToPush(settings).catch((error) => setFeedback(error instanceof Error ? error.message : t('Não foi possível ativar as notificações push.')));
+    }
+  }, [permission, profile.userId]);
   const update = (next: ReminderSettings) => {
     setSettings(next);
     saveReminderSettings(profile.userId, next);
@@ -89,8 +94,8 @@ function ReminderSettingsPanel() {
   const hasActiveReminders = settings.meals || settings.water || settings.weight;
   const testNotification = async () => {
     if (permission !== 'granted') { await enableNotifications(); return; }
-    const sent = await showAppNotification('Meal Tracker', t('Esta é uma notificação de teste.'));
-    setFeedback(sent ? t('Notificação de teste enviada.') : t('Não foi possível enviar a notificação. Verifica as permissões do navegador e do sistema.'));
+    try { await subscribeToPush(settings); await sendPushTest(); setFeedback(t('Notificação push de teste enviada.')); }
+    catch (error) { setFeedback(error instanceof Error ? error.message : t('Não foi possível enviar a notificação push de teste.')); }
   };
   return <section className="card mt-6 p-7"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><h2 className="text-xl font-bold">{t('Lembretes')}</h2><p className="mt-1 text-sm text-stone-400">{t('Escolhe quando queres ser lembrada de acompanhar o teu dia.')}</p></div><div className="flex gap-2"><button type="button" onClick={() => void testNotification()} className="rounded-2xl border border-white/15 px-4 py-2 text-sm font-bold text-stone-200">{t('Testar')}</button><button type="button" onClick={() => void enableNotifications()} className="rounded-2xl border border-leaf-500/40 px-4 py-2 text-sm font-bold text-leaf-300">{permission === 'granted' && hasActiveReminders ? t('Desativar lembretes') : t('Ativar notificações')}</button></div></div><div className="mt-5">{row('meals', 'mealsTime', 'Refeições', 'Lembra-te de registar uma refeição caso ainda não o tenhas feito.')}<div className="flex flex-col gap-3 border-t border-white/10 py-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-bold">{t('Água')}</p><p className="mt-1 text-sm text-stone-400">{t('Recebe um lembrete de hora a hora entre as 08:00 e as 22:00, até atingires o objetivo.')}</p></div><button type="button" role="switch" aria-checked={settings.water} onClick={() => toggle('water')} className={`h-7 w-12 rounded-full p-1 transition ${settings.water ? 'bg-leaf-600' : 'bg-white/10'}`}><span className={`block h-5 w-5 rounded-full bg-white transition ${settings.water ? 'translate-x-5' : ''}`} /></button></div>{row('weight', 'weightTime', 'Peso', 'Recebe um lembrete semanal ao domingo para registar o peso.')}</div><p className="mt-2 text-xs text-stone-500">{t('Os lembretes funcionam enquanto o site estiver aberto neste dispositivo.')}</p>{feedback && <p role="status" className="mt-3 text-sm font-semibold text-leaf-600">{feedback}</p>}</section>;
 }

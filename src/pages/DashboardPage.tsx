@@ -101,11 +101,13 @@ export default function DashboardPage() {
           <Link to="/diario" className="flex items-center gap-1 text-sm font-bold text-leaf-600">{t('Ver diário')} <ArrowRight size={16} /></Link>
         </div>
         <div className="mt-5 h-3 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-sky-500 transition-all" style={{ width: `${waterProgress}%` }} /></div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <label className="text-sm font-semibold text-stone-300" htmlFor="custom-water">{t('Outro valor')}</label>
-          <div className="relative"><input id="custom-water" type="number" inputMode="numeric" min="1" max="5000" step="1" value={customWaterMl} onChange={(event) => setCustomWaterMl(event.target.value)} className="input h-10 w-24 py-2 pr-9" /><span className="pointer-events-none absolute right-3 top-2.5 text-xs text-stone-400">ml</span></div>
-          <button type="button" disabled={isUpdatingWater || !customWaterMl} onClick={() => void addCustomWater()} className="h-10 rounded-xl border border-sky-400/40 px-4 text-sm font-bold text-sky-300 transition hover:bg-sky-500/10 disabled:opacity-50">{t('Adicionar água')}</button>
+        <div className="mt-4 space-y-3">
           <button type="button" disabled={isUpdatingWater} onClick={() => void updateWater(250)} className="inline-flex h-10 items-center gap-2 rounded-xl bg-sky-500 px-4 text-sm font-bold text-white transition hover:bg-sky-400 disabled:opacity-60"><Plus size={17} /> 250 ml</button>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-sm font-semibold text-stone-300" htmlFor="custom-water">{t('Outro valor')}</label>
+            <div className="relative"><input id="custom-water" type="number" inputMode="numeric" min="1" max="5000" step="1" value={customWaterMl} onChange={(event) => setCustomWaterMl(event.target.value)} className="input h-10 w-24 py-2 pr-9" /><span className="pointer-events-none absolute right-3 top-2.5 text-xs text-stone-400">ml</span></div>
+            <button type="button" disabled={isUpdatingWater || !customWaterMl} onClick={() => void addCustomWater()} className="h-10 rounded-xl border border-sky-400/40 px-4 text-sm font-bold text-sky-300 transition hover:bg-sky-500/10 disabled:opacity-50">{t('Adicionar água')}</button>
+          </div>
         </div>
         {waterError && <p role="alert" className="mt-3 text-sm font-semibold text-rose-400">{waterError}</p>}
       </section>

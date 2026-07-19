@@ -221,14 +221,16 @@ export default function ProgressPage() {
           </div>
           <label className="mt-5 block text-sm font-semibold">
             {t("Data")}
-            <input
-              className="input mt-2 !w-full !min-w-0"
-              type="date"
-              max={today()}
-              value={date}
-              onChange={(event) => setDate(event.target.value)}
-              required
-            />
+            <div className="mt-2 w-full overflow-hidden rounded-2xl">
+              <input
+                className="input !w-full !min-w-0"
+                type="date"
+                max={today()}
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+                required
+              />
+            </div>
           </label>
           <label className="mt-4 block text-sm font-semibold">
             {t("Peso (kg)")}

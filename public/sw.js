@@ -1,4 +1,4 @@
-const CACHE = 'meal-tracker-shell-v2';
+const CACHE = 'meal-tracker-shell-v3';
 const APP_SHELL = ['/', '/manifest.webmanifest', '/meal-tracker-icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -13,6 +13,9 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  // Authentication and Neon Data API calls are cross-origin. Let the browser
+  // handle their cookies and CORS directly, especially in iOS standalone PWAs.
+  if (new URL(event.request.url).origin !== self.location.origin) return;
   if (event.request.mode === 'navigate') {
     event.respondWith(fetch(event.request).catch(() => caches.match('/')));
     return;

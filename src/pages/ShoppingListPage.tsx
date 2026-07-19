@@ -5,13 +5,18 @@ import { useTranslation } from "react-i18next";
 import { recipeName } from "../lib/recipe-language";
 import {
   getShoppingEntryIds,
+  getShoppingListData,
   getShoppingCustomItems,
   getShoppingRecipePortions,
   getShoppingRecipes,
+  hydrateShoppingList,
+  loadShoppingList,
   saveShoppingEntryIds,
+  saveShoppingCheckedItems,
   saveShoppingCustomItems,
   saveShoppingRecipePortions,
   saveShoppingRecipes,
+  syncShoppingList,
 } from "../lib/shopping-list";
 import { useMeals } from "../store/MealContext";
 import NumberInput from "../components/NumberInput";
@@ -82,10 +87,9 @@ function measuredIngredient(value: string): MeasuredIngredient | null {
 export default function ShoppingListPage() {
   const { entries, recipes, profile, pantryItems } = useMeals();
   const { t, i18n } = useTranslation();
-  const storageKey = `meal-tracker-shopping-checked-${profile.userId}`;
   const [checked, setChecked] = useState<string[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem(storageKey) ?? "[]") as string[];
+      return JSON.parse(localStorage.getItem(`meal-tracker-shopping-checked-${profile.userId}`) ?? "[]") as string[];
     } catch {
       return [];
     }
@@ -102,6 +106,24 @@ export default function ShoppingListPage() {
   const [view, setView] = useState<"ingredients" | "recipes">("ingredients");
   const [customItems, setCustomItems] = useState(() => getShoppingCustomItems(profile.userId));
   const [customItemName, setCustomItemName] = useState("");
+  useEffect(() => {
+    let active = true;
+    void loadShoppingList(profile.userId).then((cloudList) => {
+      if (!active) return;
+      if (!cloudList) {
+        const localList = getShoppingListData(profile.userId);
+        if (localList.entryIds.length || localList.recipes.length || localList.customItems.length || localList.checked.length) void syncShoppingList(profile.userId).catch((error) => console.error('shopping-list migration failed', error));
+        return;
+      }
+      hydrateShoppingList(profile.userId, cloudList);
+      setChecked(cloudList.checked);
+      setSelectedEntryIds(cloudList.entryIds);
+      setSelectedRecipes(cloudList.recipes);
+      setPortionOverrides(cloudList.portions);
+      setCustomItems(cloudList.customItems);
+    }).catch((error) => console.error('shopping-list sync failed', error));
+    return () => { active = false; };
+  }, [profile.userId]);
   const pantryAmount = (item: { name: string; amount: number | null; unit: string | null }) => {
     const ingredient = normalise(item.name);
     const matching = pantryItems.filter((pantryItem) => {
@@ -277,15 +299,12 @@ export default function ShoppingListPage() {
     return cartItems.length ? [...activeGroups, { category: "No carrinho" as IngredientCategory, items: cartItems }] : activeGroups;
   }, [ingredients, checked, pantryItems, i18n.language]);
 
-  useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(checked));
-  }, [checked, storageKey]);
-  const toggle = (key: string) =>
-    setChecked((current) =>
-      current.includes(key)
-        ? current.filter((item) => item !== key)
-        : [...current, key],
-    );
+  const updateChecked = (updater: (current: string[]) => string[]) => setChecked((current) => {
+    const updated = updater(current);
+    saveShoppingCheckedItems(profile.userId, updated);
+    return updated;
+  });
+  const toggle = (key: string) => updateChecked((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]);
   const ingredientLabel = (item: {
     name: string;
     amount: number | null;
@@ -355,7 +374,7 @@ export default function ShoppingListPage() {
     saveShoppingRecipePortions(profile.userId, {});
     setCustomItems([]);
     saveShoppingCustomItems(profile.userId, []);
-    setChecked([]);
+    updateChecked(() => []);
   };
   const addCustomItem = () => {
     const name = customItemName.trim();
@@ -375,7 +394,7 @@ export default function ShoppingListPage() {
       saveShoppingCustomItems(profile.userId, updated);
       return updated;
     });
-    setChecked((current) => current.filter((item) => item !== key));
+    updateChecked((current) => current.filter((item) => item !== key));
   };
   const updatePortions = (recipeId: string, portions: number) => {
     if (!Number.isFinite(portions) || portions <= 0) return;
@@ -467,7 +486,7 @@ export default function ShoppingListPage() {
             )}
             {view === "ingredients" && checked.length > 0 && (
               <button
-                onClick={() => setChecked([])}
+                onClick={() => updateChecked(() => [])}
                 className="text-sm font-bold text-leaf-700 hover:underline"
               >
                 {t("Limpar itens assinalados")}

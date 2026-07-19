@@ -147,6 +147,17 @@ CREATE TABLE IF NOT EXISTS pantry_items (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- A lista de compras é sincronizada entre dispositivos da mesma conta.
+CREATE TABLE IF NOT EXISTS shopping_lists (
+  user_id TEXT PRIMARY KEY DEFAULT (auth.user_id()),
+  entry_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+  recipes JSONB NOT NULL DEFAULT '[]'::jsonb,
+  portion_overrides JSONB NOT NULL DEFAULT '{}'::jsonb,
+  custom_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  checked_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Subscrições para notificações push da PWA. Uma pessoa pode ter vários
 -- dispositivos/browsers associados à mesma conta.
 CREATE TABLE IF NOT EXISTS push_subscriptions (
@@ -222,6 +233,7 @@ ALTER TABLE recipe_favorites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recipe_reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_fact_views ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pantry_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shopping_lists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE push_notification_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE weight_entries ENABLE ROW LEVEL SECURITY;
@@ -241,6 +253,7 @@ DROP POLICY IF EXISTS recipe_reviews_authenticated_read ON recipe_reviews;
 DROP POLICY IF EXISTS recipe_reviews_own_rows ON recipe_reviews;
 DROP POLICY IF EXISTS daily_fact_views_own_rows ON daily_fact_views;
 DROP POLICY IF EXISTS pantry_items_own_rows ON pantry_items;
+DROP POLICY IF EXISTS shopping_lists_own_rows ON shopping_lists;
 DROP POLICY IF EXISTS push_subscriptions_own_rows ON push_subscriptions;
 DROP POLICY IF EXISTS push_notification_log_own_rows ON push_notification_log;
 DROP POLICY IF EXISTS weight_entries_own_rows ON weight_entries;
@@ -313,6 +326,11 @@ CREATE POLICY pantry_items_own_rows ON pantry_items
   USING ((SELECT auth.user_id()) = user_id)
   WITH CHECK ((SELECT auth.user_id()) = user_id);
 
+CREATE POLICY shopping_lists_own_rows ON shopping_lists
+  FOR ALL TO authenticated
+  USING ((SELECT auth.user_id()) = user_id)
+  WITH CHECK ((SELECT auth.user_id()) = user_id);
+
 CREATE POLICY push_subscriptions_own_rows ON push_subscriptions
   FOR ALL TO authenticated
   USING ((SELECT auth.user_id()) = user_id)
@@ -334,6 +352,7 @@ GRANT SELECT, INSERT, DELETE ON recipe_favorites TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON recipe_reviews TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON daily_fact_views TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON pantry_items TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON shopping_lists TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON push_subscriptions TO authenticated;
 GRANT SELECT ON push_notification_log TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON weight_entries TO authenticated;

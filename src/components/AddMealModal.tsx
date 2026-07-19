@@ -12,7 +12,7 @@ const mealTypes: MealType[] = ['Pequeno-almoço', 'Almoço', 'Lanche', 'Jantar']
 const formatLocalDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const currentDate = () => formatLocalDate(new Date());
 const previousDate = () => { const date = new Date(); date.setDate(date.getDate() - 1); return formatLocalDate(date); };
-const suggestedMealDate = () => new Date().getHours() < 4 ? previousDate() : currentDate();
+const suggestedMealDate = currentDate;
 
 export default function AddMealModal({ recipe, entry, initialDate, onClose }: { recipe: Recipe; entry?: MealEntry; initialDate?: string; onClose: () => void }) {
   const { addMeal, updateMeal, setMealConsumed, recipeReviews, profile } = useMeals();
@@ -76,7 +76,6 @@ export default function AddMealModal({ recipe, entry, initialDate, onClose }: { 
         <div className="flex items-start justify-between"><div><p className="text-sm font-semibold text-leaf-600">{t(entry ? 'Editar registo' : 'Registar refeição')}</p><h2 className="mt-1 text-xl font-bold">{recipeName(recipe, i18n.language)}</h2></div><button type="button" onClick={onClose} className="rounded-xl p-2 hover:bg-stone-100"><X /></button></div>
         <label className="mt-6 block text-sm font-semibold">{t('Dia da refeição')}<span className="relative mt-2 block"><CalendarDays className="pointer-events-none absolute left-4 top-3.5 text-stone-400" size={18} /><input className="input !pl-12" type="date" required value={date} onChange={(e) => setDate(e.target.value)} /></span></label>
         <div className="mt-2 flex items-center gap-2"><button type="button" onClick={() => setDate(currentDate())} className={`rounded-xl px-3 py-1.5 text-xs font-bold ${date === currentDate() ? 'bg-leaf-600 text-white' : 'bg-white/5 text-stone-400 hover:text-white'}`}>{t('Hoje')}</button><button type="button" onClick={() => setDate(previousDate())} className={`rounded-xl px-3 py-1.5 text-xs font-bold ${date === previousDate() ? 'bg-leaf-600 text-white' : 'bg-white/5 text-stone-400 hover:text-white'}`}>{t('Ontem')}</button></div>
-        {new Date().getHours() < 4 && date === previousDate() && <p className="mt-2 text-xs text-stone-400">{t('Como ainda é antes das 04:00, sugerimos o dia anterior. Podes alterar se necessário.')}</p>}
         <label className="mt-5 block text-sm font-semibold">{t('Tipo de refeição')}<select className="input mt-2" value={mealType} onChange={(e) => setMealType(e.target.value as MealType)}>{mealTypes.map((type) => <option key={type} value={type}>{t(type)}</option>)}</select></label>
         <label className="mt-4 block text-sm font-semibold">{t('Número de porções')}<NumberInput className="input mt-2" min="0.25" step="0.25" required value={portions} onValueChange={(value) => setPortions(Math.max(0.25, value))} /></label>
         <div className="mt-5 rounded-2xl bg-leaf-50 p-4 text-sm text-leaf-700"><strong>{Math.round(recipe.calories * portions)} kcal</strong> · {Math.round(recipe.protein * portions)}g {t('proteína')} · {Math.round(recipe.carbs * portions)}g {t('hidratos')} · {Math.round(recipe.fat * portions)}g {t('gordura')}</div>

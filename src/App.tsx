@@ -11,6 +11,7 @@ import RecipeDetailPage from './pages/RecipeDetailPage';
 import SettingsPage from './pages/SettingsPage';
 import ShoppingListPage from './pages/ShoppingListPage';
 import ProgressPage from './pages/ProgressPage';
+import DailyFactPage from './pages/DailyFactPage';
 import { MealProvider } from './store/MealContext';
 import { useTranslation } from 'react-i18next';
 
@@ -34,5 +35,5 @@ function AuthenticatedApp() {
 
   if (!session.data?.user) return <AuthPage />;
 
-  return <MealProvider userId={session.data.user.id}><Layout><Routes><Route path="/" element={<DashboardPage />} /><Route path="/receitas" element={<RecipesPage />} /><Route path="/receitas/nova" element={<RecipeEditorPage />} /><Route path="/receitas/:recipeId" element={<RecipeDetailPage />} /><Route path="/receitas/:recipeId/editar" element={<RecipeEditorPage />} /><Route path="/diario" element={<DiaryPage />} /><Route path="/compras" element={<ShoppingListPage />} /><Route path="/progresso" element={<ProgressPage />} /><Route path="/definicoes" element={<SettingsPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></Layout></MealProvider>;
+  return <MealProvider userId={session.data.user.id}><Layout><Routes><Route path="/" element={<DashboardPage />} /><Route path="/receitas" element={<RecipesPage />} /><Route path="/receitas/nova" element={<RecipeEditorPage />} /><Route path="/receitas/:recipeId" element={<RecipeDetailPage />} /><Route path="/receitas/:recipeId/editar" element={<RecipeEditorPage />} /><Route path="/diario" element={<DiaryPage />} /><Route path="/compras" element={<ShoppingListPage />} /><Route path="/progresso" element={<ProgressPage />} /><Route path="/curiosidade" element={<DailyFactPage />} /><Route path="/definicoes" element={<SettingsPage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></Layout></MealProvider>;
 }

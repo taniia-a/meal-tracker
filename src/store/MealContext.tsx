@@ -135,13 +135,25 @@ export function MealProvider({
       setIsProfileLoading(true);
       setProfileError("");
 
-      const { data, error } = await neonClient
-        .from("profiles")
-        .upsert({ user_id: userId }, { onConflict: "user_id" })
-        .select(
-          "user_id, calorie_goal, protein_goal, carbs_goal, fat_goal, water_goal_ml, disliked_ingredients, birth_year, metabolic_sex, height_cm, weight_kg, activity_level, nutrition_goal, goal_mode, onboarding_completed",
-        )
-        .single();
+      let data: any = null;
+      let error: { message?: string } | null = null;
+
+      // Mobile connections can briefly drop while a PWA is being resumed.
+      // Retry before showing a blocking error screen to the user.
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const result = await neonClient
+          .from("profiles")
+          .upsert({ user_id: userId }, { onConflict: "user_id" })
+          .select(
+            "user_id, calorie_goal, protein_goal, carbs_goal, fat_goal, water_goal_ml, disliked_ingredients, birth_year, metabolic_sex, height_cm, weight_kg, activity_level, nutrition_goal, goal_mode, onboarding_completed",
+          )
+          .single();
+
+        data = result.data;
+        error = result.error;
+        if (data && !error) break;
+        if (attempt < 2) await new Promise((resolve) => window.setTimeout(resolve, 700));
+      }
 
       if (!isActive) return;
 

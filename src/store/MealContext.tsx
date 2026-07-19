@@ -12,6 +12,7 @@ import {
   GoalMode,
   MealEntry,
   MealType,
+  ManualMealInput,
   NutritionGoals,
   NutritionProfile,
   NutritionProfileInput,
@@ -52,6 +53,8 @@ interface MealContextValue {
     portions: number,
     date: string,
   ) => Promise<void>;
+  addManualMeal: (meal: ManualMealInput) => Promise<void>;
+  updateManualMeal: (entryId: string, meal: ManualMealInput) => Promise<void>;
   updateMeal: (
     entryId: string,
     recipe: Recipe,
@@ -238,7 +241,7 @@ export function MealProvider({
       setRecipes(loadedRecipes);
       const entryResult = await neonClient
         .from("meal_entries")
-        .select("id, recipe_id, meal_date, meal_type, portions, is_consumed")
+        .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat")
         .order("created_at", { ascending: true });
       if (!isActive) return;
       if (entryResult.error) {
@@ -246,14 +249,11 @@ export function MealProvider({
         setIsRecipesLoading(false);
         return;
       }
-      setEntries(
-        (entryResult.data ?? []).flatMap((row) => {
-          const recipe = loadedRecipes.find(
-            (item) => item.id === row.recipe_id,
-          );
-          return recipe ? [mapMealEntry(row, recipe)] : [];
-        }),
-      );
+      setEntries((entryResult.data ?? []).flatMap((row) => {
+        if (!row.recipe_id) return row.manual_name ? [mapManualMealEntry(row)] : [];
+        const recipe = loadedRecipes.find((item) => item.id === row.recipe_id);
+        return recipe ? [mapMealEntry(row, recipe)] : [];
+      }));
       setIsRecipesLoading(false);
     }
     loadRecipes();
@@ -556,6 +556,50 @@ export function MealProvider({
     setEntries((current) => [...current, mapMealEntry(data, recipe)]);
   };
 
+  const addManualMeal = async (meal: ManualMealInput) => {
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const { data, error } = await neonClient
+      .from("meal_entries")
+      .insert({
+        user_id: userId,
+        meal_date: meal.date,
+        meal_type: meal.mealType,
+        portions: 1,
+        is_consumed: meal.date <= localToday(),
+        manual_name: meal.name.trim(),
+        manual_calories: meal.calories,
+        manual_protein: meal.protein,
+        manual_carbs: meal.carbs,
+        manual_fat: meal.fat,
+      })
+      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat")
+      .single();
+    if (error || !data) throw new Error(error?.message || "Não foi possível registar a refeição.");
+    setEntries((current) => [...current, mapManualMealEntry(data)]);
+  };
+
+  const updateManualMeal = async (entryId: string, meal: ManualMealInput) => {
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const { data, error } = await neonClient
+      .from("meal_entries")
+      .update({
+        meal_date: meal.date,
+        meal_type: meal.mealType,
+        is_consumed: meal.date <= localToday(),
+        manual_name: meal.name.trim(),
+        manual_calories: meal.calories,
+        manual_protein: meal.protein,
+        manual_carbs: meal.carbs,
+        manual_fat: meal.fat,
+      })
+      .eq("id", entryId)
+      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat")
+      .single();
+    if (error || !data) throw new Error(error?.message || "Não foi possível guardar as alterações.");
+    const updated = mapManualMealEntry(data);
+    setEntries((current) => current.map((entry) => entry.id === entryId ? updated : entry));
+  };
+
   const updateMeal = async (
     entryId: string,
     recipe: Recipe,
@@ -651,6 +695,8 @@ export function MealProvider({
         deleteRecipe,
         toggleFavorite,
         addMeal,
+        addManualMeal,
+        updateManualMeal,
         updateMeal,
         removeMeal,
       }}
@@ -722,11 +768,16 @@ function mapRecipe(row: RecipeRow, ingredients: IngredientRow[]): Recipe {
 
 interface MealEntryRow {
   id: string;
-  recipe_id: string;
+  recipe_id: string | null;
   meal_date: string;
   meal_type: MealType;
   portions: number | string;
   is_consumed: boolean;
+  manual_name?: string | null;
+  manual_calories?: number | string | null;
+  manual_protein?: number | string | null;
+  manual_carbs?: number | string | null;
+  manual_fat?: number | string | null;
 }
 
 interface WaterEntryRow {
@@ -752,10 +803,29 @@ function mapMealEntry(row: MealEntryRow, recipe: Recipe): MealEntry {
     mealType: row.meal_type,
     portions,
     isConsumed: row.meal_date <= localToday(),
+    isManual: false,
     calories: scale(recipe.calories),
     protein: scale(recipe.protein),
     carbs: scale(recipe.carbs),
     fat: scale(recipe.fat),
+  };
+}
+
+function mapManualMealEntry(row: MealEntryRow): MealEntry {
+  return {
+    id: row.id,
+    recipeId: null,
+    recipeName: row.manual_name ?? "Refeição manual",
+    recipeNameEn: row.manual_name ?? "Manual meal",
+    date: row.meal_date,
+    mealType: row.meal_type,
+    portions: 1,
+    isConsumed: row.meal_date <= localToday(),
+    isManual: true,
+    calories: Number(row.manual_calories ?? 0),
+    protein: Number(row.manual_protein ?? 0),
+    carbs: Number(row.manual_carbs ?? 0),
+    fat: Number(row.manual_fat ?? 0),
   };
 }
 

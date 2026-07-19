@@ -53,13 +53,20 @@ export interface RecipeInput extends Macros {
 
 export interface MealEntry extends Macros {
   id: string;
-  recipeId: string;
+  recipeId: string | null;
   recipeName: string;
   recipeNameEn: string;
   date: string;
   mealType: MealType;
   portions: number;
   isConsumed: boolean;
+  isManual: boolean;
+}
+
+export interface ManualMealInput extends Macros {
+  name: string;
+  date: string;
+  mealType: MealType;
 }
 
 export interface WaterEntry {

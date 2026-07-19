@@ -166,18 +166,23 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   endpoint TEXT NOT NULL UNIQUE,
   p256dh TEXT NOT NULL,
   auth TEXT NOT NULL,
-  reminders JSONB NOT NULL DEFAULT '{"meals":false,"mealsTime":"21:00","water":false,"weight":false,"weightTime":"08:00"}'::jsonb,
+  reminders JSONB NOT NULL DEFAULT '{"meals":false,"mealsTime":"21:00","water":false,"weight":false,"weightTime":"08:00","stockExpiry":false}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS push_notification_log (
   subscription_id UUID NOT NULL REFERENCES push_subscriptions(id) ON DELETE CASCADE,
-  kind TEXT NOT NULL CHECK (kind IN ('meals', 'water', 'weight')),
+  kind TEXT NOT NULL CHECK (kind IN ('meals', 'water', 'weight', 'stock-expiry')),
   slot TEXT NOT NULL,
   sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (subscription_id, kind, slot)
 );
+
+-- Adds the new stock-expiry reminder kind to existing projects as well.
+ALTER TABLE push_notification_log DROP CONSTRAINT IF EXISTS push_notification_log_kind_check;
+ALTER TABLE push_notification_log ADD CONSTRAINT push_notification_log_kind_check
+  CHECK (kind IN ('meals', 'water', 'weight', 'stock-expiry'));
 
 CREATE TABLE IF NOT EXISTS weight_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

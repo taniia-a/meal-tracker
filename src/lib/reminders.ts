@@ -1,4 +1,4 @@
-export type ReminderKind = 'meals' | 'water' | 'weight';
+export type ReminderKind = 'meals' | 'water' | 'weight' | 'stock-expiry';
 
 export type ReminderSettings = {
   meals: boolean;
@@ -7,6 +7,7 @@ export type ReminderSettings = {
   waterIntervalMinutes: number;
   weight: boolean;
   weightTime: string;
+  stockExpiry: boolean;
 };
 
 export const defaultReminderSettings: ReminderSettings = {
@@ -16,6 +17,7 @@ export const defaultReminderSettings: ReminderSettings = {
   waterIntervalMinutes: 60,
   weight: false,
   weightTime: '08:00',
+  stockExpiry: false,
 };
 
 const key = (userId: string) => `meal-tracker-reminders-${userId}`;

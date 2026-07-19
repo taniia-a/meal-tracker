@@ -1,7 +1,7 @@
 import pg from 'pg';
 
 type PushSubscriptionPayload = { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
-type ReminderPayload = { meals?: boolean; mealsTime?: string; water?: boolean; weight?: boolean; weightTime?: string };
+type ReminderPayload = { meals?: boolean; mealsTime?: string; water?: boolean; weight?: boolean; weightTime?: string; stockExpiry?: boolean };
 
 async function authenticatedUser(token: string, dataApiUrl?: string) {
   if (!dataApiUrl) return null;
@@ -32,7 +32,7 @@ export async function pushSubscription(request: Request, env: Record<string, str
       } else {
         const subscription = body.subscription;
         if (!subscription?.endpoint || !subscription.keys?.p256dh || !subscription.keys.auth) return Response.json({ error: 'Subscrição push inválida.' }, { status: 400 });
-        const reminders = { meals: Boolean(body.reminders?.meals), mealsTime: body.reminders?.mealsTime ?? '21:00', water: Boolean(body.reminders?.water), weight: Boolean(body.reminders?.weight), weightTime: body.reminders?.weightTime ?? '08:00' };
+        const reminders = { meals: Boolean(body.reminders?.meals), mealsTime: body.reminders?.mealsTime ?? '21:00', water: Boolean(body.reminders?.water), weight: Boolean(body.reminders?.weight), weightTime: body.reminders?.weightTime ?? '08:00', stockExpiry: Boolean(body.reminders?.stockExpiry) };
         await client.query(`INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, reminders)
           VALUES ($1, $2, $3, $4, $5::jsonb)
           ON CONFLICT (endpoint) DO UPDATE SET user_id = EXCLUDED.user_id, p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth, reminders = EXCLUDED.reminders, updated_at = NOW()`, [userId, subscription.endpoint, subscription.keys.p256dh, subscription.keys.auth, JSON.stringify(reminders)]);

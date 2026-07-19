@@ -1,7 +1,8 @@
 import pg from 'pg';
 import webpush from 'web-push';
 
-type SubscriptionRow = { id: string; user_id: string; endpoint: string; p256dh: string; auth: string; reminders: { meals?: boolean; mealsTime?: string; water?: boolean; weight?: boolean; weightTime?: string } };
+type SubscriptionRow = { id: string; user_id: string; endpoint: string; p256dh: string; auth: string; reminders: { meals?: boolean; mealsTime?: string; water?: boolean; weight?: boolean; weightTime?: string; stockExpiry?: boolean } };
+type PantryExpiryRow = { name: string; expires_on: string };
 
 function portugalTime() {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts();
@@ -25,13 +26,28 @@ export async function pushReminders(request: Request) {
     const now = portugalTime();
     const { rows } = await client.query<SubscriptionRow>('SELECT id, user_id, endpoint, p256dh, auth, reminders FROM push_subscriptions');
     for (const subscription of rows) {
-      const jobs: Array<{ kind: 'meals' | 'water' | 'weight'; title: string; body: string; slot: string }> = [];
+      const jobs: Array<{ kind: 'meals' | 'water' | 'weight' | 'stock-expiry'; title: string; body: string; slot: string }> = [];
       if (subscription.reminders.meals && timeMatches('21:00', now.hour, now.minute)) {
         const { rows: mealRows } = await client.query<{ meal_type: string }>('SELECT DISTINCT meal_type FROM meal_entries WHERE user_id = $1 AND meal_date = $2', [subscription.user_id, now.day]);
         if (mealRows.length < 4) jobs.push({ kind: 'meals', title: 'Meal Tracker', body: 'Não te esqueças de registar as tuas refeições de hoje.', slot: `${now.day}-meals` });
       }
       if (subscription.reminders.water && now.hour >= 8 && now.hour < 22 && now.minute < 5) jobs.push({ kind: 'water', title: 'Meal Tracker', body: 'Lembra-te de beber água e registar o que bebeste.', slot: `${now.day}-water-${now.hour}` });
       if (subscription.reminders.weight && now.weekday === 'Sun' && timeMatches('08:00', now.hour, now.minute)) jobs.push({ kind: 'weight', title: 'Meal Tracker', body: 'Está na altura de registar o teu peso desta semana.', slot: `${now.day}-weight` });
+      if (subscription.reminders.stockExpiry && timeMatches('09:00', now.hour, now.minute)) {
+        const { rows: expiringItems } = await client.query<PantryExpiryRow>(
+          `SELECT name, expires_on::text
+           FROM pantry_items
+           WHERE user_id = $1
+             AND expires_on BETWEEN $2::date AND ($2::date + INTERVAL '7 days')
+           ORDER BY expires_on ASC, name ASC`,
+          [subscription.user_id, now.day],
+        );
+        if (expiringItems.length) {
+          const names = expiringItems.slice(0, 2).map((item) => item.name).join(', ');
+          const more = expiringItems.length > 2 ? ` e mais ${expiringItems.length - 2}` : '';
+          jobs.push({ kind: 'stock-expiry', title: 'Meal Tracker', body: `Tens produtos em stock com validade próxima: ${names}${more}.`, slot: `${now.day}-stock-expiry` });
+        }
+      }
       for (const job of jobs) {
         const logged = await client.query('SELECT 1 FROM push_notification_log WHERE subscription_id = $1 AND kind = $2 AND slot = $3', [subscription.id, job.kind, job.slot]);
         if (logged.rowCount) continue;

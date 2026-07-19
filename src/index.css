@@ -80,7 +80,12 @@ input[type="date"].input {
 /* Safari gives date fields an intrinsic width unless this inner value can shrink. */
 input[type="date"].input::-webkit-date-and-time-value {
   min-width: 0;
-  text-align: left;
+  text-align: inherit;
+}
+
+.diary-date-input::-webkit-datetime-edit {
+  padding: 0;
+  text-align: center;
 }
 
 /* iOS can ignore `color` on numeric controls, leaving their value invisible. */

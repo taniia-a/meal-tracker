@@ -54,7 +54,11 @@ export function canSendRepeatingReminder(userId: string, kind: ReminderKind, int
 export function timeReached(time: string) {
   const [hours, minutes] = time.split(':').map(Number);
   const now = new Date();
-  return now.getHours() * 60 + now.getMinutes() >= hours * 60 + minutes;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const targetMinutes = hours * 60 + minutes;
+  // This is only the in-app fallback. Do not send a stale reminder after
+  // reopening the app; background delivery is handled by web push.
+  return currentMinutes >= targetMinutes && currentMinutes < targetMinutes + 2;
 }
 
 export function isWaterReminderWindow() {

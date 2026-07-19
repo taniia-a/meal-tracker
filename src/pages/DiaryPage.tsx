@@ -1,10 +1,10 @@
 import { Bot, CalendarDays, ChevronLeft, ChevronRight, Droplets, Pencil, Plus, Search, ShoppingCart, Sparkles, Trash2, X } from 'lucide-react';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import AddMealModal from '../components/AddMealModal';
 import { sumMacros } from '../components/NutritionProgress';
 import { useMeals } from '../store/MealContext';
-import { ManualMealInput, MealEntry, MealType, Recipe } from '../types';
+import { ManualMealInput, MealEntry, MealType, Recipe, WaterEntry } from '../types';
 import { addShoppingEntryIds } from '../lib/shopping-list';
 import { formatLocalDate, nutritionDay } from '../lib/nutrition-day';
 import { recipeName } from '../lib/recipe-language';
@@ -14,6 +14,7 @@ const types: MealType[] = ['Pequeno-almoço', 'Almoço', 'Lanche', 'Jantar'];
 const formatDateValue = formatLocalDate;
 const parseDateValue = (value: string) => { const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day, 12); };
 const today = nutritionDay();
+const waterEntriesPerPage = 5;
 
 function weekFrom(dateValue: string) {
   const date = parseDateValue(dateValue);
@@ -74,7 +75,7 @@ export default function DiaryPage() {
 
     {view === 'day' ? <>
       <p className="mt-8 text-sm font-bold text-stone-400">{t('Totais previstos')}</p><div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4"><Summary value={Math.round(total.calories)} label={t('Calorias')} unit="kcal" /><Summary value={Math.round(total.protein)} label={t('Proteína')} unit="g" /><Summary value={Math.round(total.carbs)} label={t('Hidratos')} unit="g" /><Summary value={Math.round(total.fat)} label={t('Gordura')} unit="g" /></div>
-      <section className="card mt-6 p-6"><div className="flex items-center justify-between gap-4"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-sky-500/15 text-sky-400"><Droplets size={20} /></div><div><h2 className="font-bold">{t('Água')}</h2><p className="text-sm text-stone-400">{t('{{count}} movimento(s)', { count: dailyWater.length })}</p></div></div><div className="flex items-center gap-3"><span className="text-lg font-extrabold text-sky-300">{dailyWater.reduce((sum, entry) => sum + entry.amountMl, 0)} ml</span><button onClick={() => setIsWaterModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-sky-400/40 px-3 py-2 text-sm font-bold text-sky-300 hover:bg-sky-500/10"><Plus size={17} /> {t('Adicionar água')}</button></div></div>{dailyWater.length ? <div className="mt-3 divide-y divide-white/10">{dailyWater.map((entry) => <div key={entry.id} className="flex items-center justify-between py-3"><span className="font-semibold">+{entry.amountMl} ml</span><button onClick={() => void deleteWaterEntry(entry.id)} aria-label={t('Apagar registo de água')} className="rounded-xl p-2 text-stone-400 hover:bg-rose-500/10 hover:text-rose-400"><Trash2 size={17} /></button></div>)}</div> : <p className="mt-4 rounded-2xl bg-white/5 p-4 text-sm text-stone-400">{t('Ainda não registaste água neste dia.')}</p>}</section>
+      <WaterLog date={date} entries={dailyWater} onAdd={() => setIsWaterModalOpen(true)} onDelete={deleteWaterEntry} />
       <div className="mt-6 space-y-4">{types.map((type) => { const meals = daily.filter((entry) => entry.mealType === type); return <section key={type} className="card p-6"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">{t(type)}</h2><span className="text-sm font-semibold text-stone-400">{Math.round(sumMacros(meals).calories)} kcal</span></div>{meals.length === 0 ? <p className="mt-4 rounded-2xl bg-white/5 p-4 text-sm text-stone-400">{t('Sem registos.')}</p> : <div className="mt-3 divide-y divide-white/10">{meals.map((meal) => { const consumed = meal.date <= today; return <div key={meal.id} className="flex items-center justify-between gap-3 py-3"><div><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{entryName(meal)}</p>{meal.isManual && <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase text-sky-300">{t('Manual')}</span>}<span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${consumed ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'}`}>{t(consumed ? 'Consumida' : 'Planeada')}</span></div><p className="text-xs text-stone-400">{meal.isManual ? t('Valores introduzidos manualmente.') : t('{{count}} porção(ões)', { count: meal.portions })} · P {meal.protein}g · C {meal.carbs}g · F {meal.fat}g</p></div><div className="flex items-center gap-2"><span className="mr-1 text-sm font-bold">{meal.calories} kcal</span><button onClick={() => meal.isManual ? setEditingManual(meal) : setEditing(meal)} aria-label={t('Editar registo')} className="rounded-xl p-2 text-stone-400 hover:bg-leaf-500/10 hover:text-leaf-700"><Pencil size={17} /></button><button onClick={() => deleteEntry(meal.id)} aria-label={t('Remover refeição')} className="rounded-xl p-2 text-stone-400 hover:bg-rose-500/10 hover:text-rose-400"><Trash2 size={17} /></button></div></div>; })}</div>}</section>; })}</div>
     </> : <WeeklyView week={week} entries={entries} locale={locale} today={today} onPrevious={() => moveWeek(-1)} onNext={() => moveWeek(1)} onCurrent={() => setDate(today)} onOpenDay={openDay} onAddToShoppingList={addWeekToShoppingList} />}
 
@@ -85,6 +86,16 @@ export default function DiaryPage() {
     {adding && <AddMealModal recipe={adding} initialDate={date} onClose={() => setAdding(null)} />}
     {editing && (() => { const recipe = recipes.find((item) => item.id === editing.recipeId); return recipe ? <AddMealModal recipe={recipe} entry={editing} onClose={() => setEditing(null)} /> : null; })()}
   </div>;
+}
+
+function WaterLog({ date, entries, onAdd, onDelete }: { date: string; entries: WaterEntry[]; onAdd: () => void; onDelete: (id: string) => Promise<void> }) {
+  const { t } = useTranslation();
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [date]);
+  const pageCount = Math.max(1, Math.ceil(entries.length / waterEntriesPerPage));
+  const currentPage = Math.min(page, pageCount);
+  const visibleEntries = entries.slice((currentPage - 1) * waterEntriesPerPage, currentPage * waterEntriesPerPage);
+  return <section className="card mt-6 p-6"><div className="flex items-center justify-between gap-4"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-sky-500/15 text-sky-400"><Droplets size={20} /></div><div><h2 className="font-bold">{t('Água')}</h2><p className="text-sm text-stone-400">{t('{{count}} movimento(s)', { count: entries.length })}</p></div></div><div className="flex items-center gap-3"><span className="text-lg font-extrabold text-sky-300">{entries.reduce((sum, entry) => sum + entry.amountMl, 0)} ml</span><button onClick={onAdd} className="inline-flex items-center gap-2 rounded-xl border border-sky-400/40 px-3 py-2 text-sm font-bold text-sky-300 hover:bg-sky-500/10"><Plus size={17} /> {t('Adicionar água')}</button></div></div>{entries.length ? <><div className="mt-3 divide-y divide-white/10">{visibleEntries.map((entry) => <div key={entry.id} className="flex items-center justify-between py-3"><span className="font-semibold">+{entry.amountMl} ml</span><button onClick={() => void onDelete(entry.id)} aria-label={t('Apagar registo de água')} className="rounded-xl p-2 text-stone-400 hover:bg-rose-500/10 hover:text-rose-400"><Trash2 size={17} /></button></div>)}</div>{entries.length > waterEntriesPerPage && <div className="mt-3 flex items-center justify-center gap-4 border-t border-white/10 pt-4"><button type="button" disabled={currentPage === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold disabled:opacity-40">{t('Anterior')}</button><span className="text-sm text-stone-400">{t('Página {{page}} de {{total}}', { page: currentPage, total: pageCount })}</span><button type="button" disabled={currentPage === pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))} className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold disabled:opacity-40">{t('Seguinte')}</button></div>}</> : <p className="mt-4 rounded-2xl bg-white/5 p-4 text-sm text-stone-400">{t('Ainda não registaste água neste dia.')}</p>}</section>;
 }
 
 function AddWaterModal({ date, onClose, onSave }: { date: string; onClose: () => void; onSave: (amountMl: number, entryDate: string) => Promise<void> }) {

@@ -26,6 +26,7 @@ const measurements: Array<{ key: MeasurementKey; label: string }> = [
   { key: "calf_cm", label: "Gémeo (cm)" },
 ];
 const today = () => new Date().toISOString().slice(0, 10);
+const entriesPerPage = 5;
 
 export default function ProgressPage() {
   const { profile, syncProgressWeight } = useMeals();
@@ -46,6 +47,7 @@ export default function ProgressPage() {
   const [editing, setEditing] = useState<WeightEntry | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
 
   const load = async () => {
     if (!neonClient) return;
@@ -85,6 +87,13 @@ export default function ProgressPage() {
   );
   const change =
     values.length > 1 ? values[values.length - 1].weight - values[0].weight : 0;
+  const recentValues = [...values].reverse();
+  const pageCount = Math.max(1, Math.ceil(recentValues.length / entriesPerPage));
+  const currentPage = Math.min(page, pageCount);
+  const visibleEntries = recentValues.slice(
+    (currentPage - 1) * entriesPerPage,
+    currentPage * entriesPerPage,
+  );
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
@@ -289,7 +298,7 @@ export default function ProgressPage() {
           </p>
         ) : (
           <div className="divide-y divide-white/10">
-            {[...values].reverse().map((entry) => (
+            {visibleEntries.map((entry) => (
               <div
                 key={entry.id}
                 className="flex items-center justify-between gap-4 p-5 hover:bg-white/[0.03]"
@@ -335,6 +344,29 @@ export default function ProgressPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+        {recentValues.length > entriesPerPage && (
+          <div className="flex items-center justify-center gap-4 border-t border-white/10 p-4">
+            <button
+              type="button"
+              disabled={currentPage === 1}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold disabled:opacity-40"
+            >
+              {t("Anterior")}
+            </button>
+            <span className="text-sm text-stone-400">
+              {t("Página {{page}} de {{total}}", { page: currentPage, total: pageCount })}
+            </span>
+            <button
+              type="button"
+              disabled={currentPage === pageCount}
+              onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+              className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold disabled:opacity-40"
+            >
+              {t("Seguinte")}
+            </button>
           </div>
         )}
       </section>

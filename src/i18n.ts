@@ -1,68 +1,654 @@
-import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
 
 const english = {
-  'Nutrição sem complicações': 'Nutrition made simple', 'Resumo': 'Overview', 'Receitas': 'Recipes', 'Diário': 'Diary', 'Definições': 'Settings', 'Terminar sessão': 'Sign out',
-  'O teu dia nutricional': 'Your nutrition today', 'Olá! O que vamos comer?': 'Hello! What are we eating?', 'Acompanha as refeições e mantém os teus objetivos à vista.': 'Track your meals and keep your goals in sight.', 'Registar refeição': 'Log meal', 'Calorias restantes': 'Calories remaining', 'Consumiste {{consumed}} das {{goal}} kcal planeadas.': 'You consumed {{consumed}} of {{goal}} planned kcal.', 'Macronutrientes': 'Macronutrients', 'Proteína': 'Protein', 'Hidratos': 'Carbs', 'Gordura': 'Fat', 'Refeições de hoje': "Today's meals", '{{count}} registo(s)': '{{count}} entry', '{{count}} registo(s)_plural': '{{count}} entries', 'Ainda não registaste nenhuma refeição.': "You haven't logged any meals yet.", 'Ver diário': 'View diary', 'Pesquisa uma receita para começares o teu dia.': 'Find a recipe to start your day.', '{{count}} porção(ões)': '{{count}} serving', '{{count}} porção(ões)_plural': '{{count}} servings',
-  'Histórico': 'History', 'Diário de refeições': 'Meal diary', 'Consulta e gere tudo o que registaste.': 'View and manage everything you have logged.', 'Compras': 'Shopping', 'Planeamento': 'Planning', 'Lista de compras': 'Shopping list', 'Adiciona as refeições que queres comprar a partir da vista semanal do diário.': 'Add the meals you want to shop for from the weekly diary view.', '{{count}} refeição(ões) adicionada(s)': '{{count}} meal added', '{{count}} refeição(ões) adicionada(s)_plural': '{{count}} meals added', '{{count}} refeição(ões) adicionada(s) à lista de compras.': '{{count}} meal added to your shopping list.', '{{count}} refeição(ões) adicionada(s) à lista de compras._plural': '{{count}} meals added to your shopping list.', '{{count}} ingrediente(s) na lista': '{{count}} ingredient on the list', '{{count}} ingrediente(s) na lista_plural': '{{count}} ingredients on the list', '{{count}} receita(s) planeada(s)': '{{count}} planned recipe', '{{count}} receita(s) planeada(s)_plural': '{{count}} planned recipes', 'Por receita': 'By recipe', 'Limpar itens assinalados': 'Clear checked items', 'Limpar lista': 'Clear list', 'A lista de compras está vazia': 'Your shopping list is empty', 'Abre a vista semanal do diário e adiciona as refeições futuras que queres comprar.': 'Open the weekly diary view and add the future meals you want to shop for.', 'Adicionar semana às compras': 'Add week to shopping list', 'Não existem refeições futuras nesta semana.': 'There are no future meals this week.', 'Ainda não tens refeições planeadas': 'You do not have any planned meals yet', 'Regista receitas numa data futura para criares automaticamente a lista de compras.': 'Log recipes on a future date to automatically create your shopping list.', 'Ver receitas': 'View recipes', 'Marcar ingrediente {{name}}': 'Mark {{name}}', 'Ingredientes com g, kg, ml ou L são somados automaticamente quando o nome é igual.': 'Ingredients with g, kg, ml or L are automatically totalled when their name matches.', 'Calorias': 'Calories', 'Sem registos.': 'No entries.', 'Editar registo': 'Edit entry', 'Remover refeição': 'Remove meal', 'Não foi possível apagar o registo.': 'Could not delete the entry.',
-  'Adicionar refeição': 'Add meal', 'Pesquisar receitas': 'Search recipes', 'Refeição manual': 'Manual meal', 'Manual': 'Manual', 'Nome da refeição': 'Meal name', 'Valores introduzidos manualmente.': 'Values entered manually.', 'Os macros são opcionais. Se não os souberes, podes deixar em branco.': 'Macros are optional. Leave them blank if you do not know them.', 'Indica o nome e as calorias da refeição.': 'Enter the meal name and calories.', 'Introduz valores nutricionais válidos.': 'Enter valid nutritional values.', 'Estimar com IA': 'Estimate with AI', 'Descreve o que comeste e a IA preenche uma estimativa que podes alterar antes de guardar.': 'Describe what you ate and AI will fill in an estimate that you can edit before saving.', 'Ex.: comi uma sandes de frango grelhado com queijo e um galão.': 'E.g. I had a grilled chicken and cheese sandwich and a latte.', 'A estimar...': 'Estimating...', 'Estimar valores': 'Estimate values', 'Descreve primeiro o que comeste.': 'Describe what you ate first.', 'Não foi possível obter uma estimativa agora.': 'Could not get an estimate right now.', 'A estimativa por IA só está disponível no ambiente Vercel. Faz deploy ou inicia com vercel dev.': 'AI estimation is only available in the Vercel environment. Deploy the app or start it with vercel dev.', 'Pesquisa uma receita para registar no diário.': 'Search for a recipe to log in your diary.', 'Nenhuma receita encontrada.': 'No recipes found.',
-  'Favoritas': 'Favorites', 'Adicionar aos favoritos': 'Add to favorites', 'Remover dos favoritos': 'Remove from favorites', 'Não foi possível atualizar os favoritos.': 'Could not update favorites.', 'Ordenar por': 'Sort by', 'Mais recentes': 'Most recent', 'Preparação mais rápida': 'Quickest preparation', 'Mais calorias': 'Most calories', 'Menos calorias': 'Fewest calories', 'Mais proteína': 'Most protein', 'Menos proteína': 'Least protein',
-  'Peso inicial (kg)': 'Starting weight (kg)', 'Peso guardado e objetivos recalculados.': 'Weight saved and goals recalculated.', 'Peso guardado e objetivo de água atualizado.': 'Weight saved and water goal updated.', 'Não foi possível atualizar os objetivos.': 'Could not update goals.', 'Medidas corporais (opcional)': 'Body measurements (optional)', 'Cintura (cm)': 'Waist (cm)', 'Anca (cm)': 'Hips (cm)', 'Abdominal (cm)': 'Abdomen (cm)', 'Braço (cm)': 'Arm (cm)', 'Coxa (cm)': 'Thigh (cm)', 'Gémeo (cm)': 'Calf (cm)', 'Guardar registo': 'Save entry',
-  'Estatísticas': 'Statistics', 'Baseadas apenas em dias já fechados.': 'Based only on completed days.', 'Receita mais consumida': 'Most consumed recipe', 'Média diária de calorias': 'Average daily calories', 'Média diária de proteína': 'Average daily protein', 'Média diária de hidratos': 'Average daily carbs', 'Média diária de gordura': 'Average daily fat', 'Média semanal de calorias': 'Average weekly calories', 'Peso ao longo do tempo': 'Weight over time', 'Dias dentro do objetivo': 'Days within target', 'Aderência aos objetivos': 'Goal adherence', 'Sequência atual': 'Current streak', 'Por dia registado': 'Per logged day', 'Por semana registada': 'Per logged week', 'Calorias até 10% da meta': 'Calories within 10% of target', 'Dias seguidos dentro do objetivo': 'Consecutive days within target', 'Sem dados ainda': 'No data yet', '{{count}} vez(es)': '{{count}} time', '{{count}} vez(es)_plural': '{{count}} times', '{{count}} dia(s)': '{{count}} day', '{{count}} dia(s)_plural': '{{count}} days',
-  'Progresso': 'Progress', 'Aprender': 'Learn', 'Sabias que…?': 'Did you know…?', 'Uma curiosidade de nutrição por dia.': 'One nutrition fact per day.', 'Uma dica baseada no teu dia anterior.': 'A tip based on your previous day.', 'Ontem ficaste abaixo da tua meta de proteína': 'Yesterday you were below your protein target', 'A proteína contribui para a manutenção e recuperação muscular, além de ajudar na saciedade. Uma distribuição mais equilibrada pelas refeições pode tornar a meta mais fácil de atingir.': 'Protein supports muscle maintenance and recovery, and can also help with fullness. Spreading protein more evenly across meals can make your target easier to reach.', 'Hoje, tenta incluir uma fonte de proteína em cada refeição principal.': 'Today, try to include a protein source at each main meal.', 'Em resumo': 'In short', 'A curiosidade muda automaticamente amanhã.': 'The fact changes automatically tomorrow.', 'Histórico de peso': 'Weight history', 'Regista o teu peso e acompanha a evolução ao longo do tempo.': 'Log your weight and track your progress over time.', 'Evolução': 'Progress', 'Sem registos ainda': 'No entries yet', 'Registos': 'Entries', 'Variação': 'Change', 'Adicionar registo': 'Add entry', 'Data': 'Date', 'Peso (kg)': 'Weight (kg)', 'Guardar peso': 'Save weight', 'Peso guardado com sucesso.': 'Weight saved successfully.', 'Ainda não existem registos de peso.': 'There are no weight entries yet.', 'Apagar registo de peso': 'Delete weight entry', 'Adiciona pelo menos dois registos\npara veres o gráfico.': 'Add at least two entries\nto see the chart.',
-  'Sugestões para o jantar': 'Dinner suggestions', 'Receitas escolhidas com base no que falta para os teus objetivos de hoje.': 'Recipes selected based on what is left to reach your goals today.', 'Compatível com os teus ingredientes a evitar.': 'Compatible with your ingredient preferences.', 'Não a consumiste nas últimas 4 semanas.': 'You have not consumed it in the last 4 weeks.', 'Ajuda a atingir a proteína que te falta hoje.': 'Helps you reach the protein you still need today.', 'Bem avaliada ({{rating}}/5).': 'Highly rated ({{rating}}/5).', 'Usa {{count}} ingrediente(s) com validade próxima.': 'Uses {{count}} ingredient close to expiry', 'Usa {{count}} ingrediente(s) com validade próxima._plural': 'Uses {{count}} ingredients close to expiry', 'Usa ingredientes que tens na despensa.': 'Uses ingredients you have in your pantry.',
-  'Água': 'Water', '{{consumed}} ml de {{goal}} ml': '{{consumed}} ml of {{goal}} ml', '{{count}} movimento(s)': '{{count}} entry', '{{count}} movimento(s)_plural': '{{count}} entries', 'Apagar registo de água': 'Delete water entry', 'Não foi possível apagar o registo de água.': 'Could not delete the water entry.', 'Ainda não registaste água neste dia.': 'You have not logged water for this day yet.', 'Outro valor': 'Other amount', 'Adicionar água': 'Add water', 'Quantidade de água (ml)': 'Water amount (ml)', 'Introduz uma quantidade de água válida.': 'Enter a valid water amount.', 'Não foi possível atualizar a água.': 'Could not update water intake.', 'Objetivo diário de água': 'Daily water goal', 'Define a quantidade de água que queres acompanhar todos os dias.': 'Set the amount of water you want to track every day.', 'Água por dia (ml)': 'Water per day (ml)', 'Guardar objetivo de água': 'Save water goal', 'Objetivo de água guardado.': 'Water goal saved.', 'Não foi possível guardar o objetivo de água.': 'Could not save water goal.',
-  'Não podes guardar registos em datas futuras.': 'You cannot save entries for future dates.', 'Variação das medidas': 'Measurement changes', 'Partilhar': 'Share', 'Editar registo de progresso': 'Edit progress entry', 'Cancelar': 'Cancel',
-  'Porções para a lista': 'Servings for shopping list', 'Aumentar porções': 'Increase servings', 'Reduzir porções': 'Decrease servings', 'porções na lista': 'servings in list',
-  'Adicionar à lista de compras': 'Add to shopping list', 'Receita adicionada à lista de compras.': 'Recipe added to the shopping list.', 'Não foi possível adicionar a receita à lista de compras.': 'Could not add the recipe to the shopping list.', 'Adicionada diretamente': 'Added directly', 'Adicionado manualmente': 'Added manually', 'Adicionar artigo': 'Add item', 'Remover artigo': 'Remove item', 'Ex.: detergente, papel higiénico...': 'E.g. detergent, toilet paper...', 'Remover receita da lista': 'Remove recipe from list', 'Fruta e legumes': 'Fruit and vegetables', 'Laticínios e ovos': 'Dairy and eggs', 'Carne, peixe e alternativas': 'Meat, fish and alternatives', 'Cereais e padaria': 'Grains and bakery', 'Despensa': 'Pantry', 'Outros': 'Other',
-  'Pequeno-almoço': 'Breakfast', 'Almoço': 'Lunch', 'Lanche': 'Snack', 'Jantar': 'Dinner', 'Pequeno Almoço': 'Breakfast', 'Almoço/Jantar': 'Lunch/Dinner', 'Snacks': 'Snacks', 'Sobremesas': 'Desserts',
-  'Dia da refeição': 'Meal date', 'Hoje': 'Today', 'Ontem': 'Yesterday', 'Tipo de refeição': 'Meal type', 'Número de porções': 'Number of servings', 'proteína': 'protein', 'hidratos': 'carbs', 'gordura': 'fat', 'Registo alterado com sucesso.': 'Entry updated successfully.', 'Refeição registada com sucesso.': 'Meal logged successfully.', 'Não foi possível registar a refeição.': 'Could not log the meal.', 'Se ainda não a consumiste, ficará planeada no diário.': 'If you have not consumed it yet, it will remain planned in your diary.', 'Alterações guardadas': 'Changes saved', 'Registado': 'Logged', 'Guardar alterações': 'Save changes', 'Adicionar ao diário': 'Add to diary',
-  'Biblioteca': 'Library', 'Encontra a próxima refeição': 'Find your next meal', 'Pesquisa pelo nome da receita ou por um ingrediente.': 'Search by recipe name or ingredient.', 'Nova receita': 'New recipe', 'Ex.: frango, aveia, salmão...': 'E.g. chicken, oats, salmon...', 'Todas': 'All', '{{count}} receita(s) encontrada(s)': '{{count}} recipe found', '{{count}} receita(s) encontrada(s)_plural': '{{count}} recipes found', 'A carregar receitas...': 'Loading recipes...', 'Ainda não existem receitas': 'There are no recipes yet', 'Cria a primeira receita para começares.': 'Create the first recipe to get started.', 'Ver': 'View', 'Registar': 'Log', 'Ver receita {{name}}': 'View {{name}} recipe', 'Editar receita': 'Edit recipe', 'Apagar receita': 'Delete recipe', 'A apagar...': 'Deleting...', 'Apagar “{{name}}”?': 'Delete “{{name}}”?', 'Não foi possível apagar.': 'Could not delete.', 'Já existe uma receita com este nome.': 'A recipe with this name already exists.',
-  'Voltar às receitas': 'Back to recipes', 'Editar': 'Edit', 'Ingredientes': 'Ingredients', 'Preparação': 'Method', 'Observações': 'Notes', 'Ainda não foram adicionadas instruções de preparação.': 'No preparation instructions have been added yet.', 'A carregar receita...': 'Loading recipe...', 'Partilhar receita': 'Share recipe', 'Vê esta receita no Meal Tracker.': 'Check out this recipe on Meal Tracker.', 'Link copiado. Quem o receber terá de criar conta ou iniciar sessão para ver a receita.': 'Link copied. Anyone who receives it will need to create an account or sign in to view the recipe.', 'Não foi possível partilhar a receita.': 'Could not share the recipe.',
-  'Avaliações': 'Reviews', 'Ainda não existem avaliações.': 'There are no reviews yet.', 'Sê a primeira pessoa a avaliar esta receita.': 'Be the first to review this recipe.', '{{average}} de 5 · {{count}} avaliação(ões)': '{{average}} out of 5 · {{count}} review', '{{average}} de 5 · {{count}} avaliação(ões)_plural': '{{average}} out of 5 · {{count}} reviews', 'Avalia esta receita': 'Rate this recipe', 'Editar a tua avaliação': 'Edit your review', 'Comentário (opcional)': 'Comment (optional)', 'Partilha a tua opinião sobre esta receita...': 'Share your thoughts about this recipe...', 'Guardar avaliação': 'Save review', 'Apagar avaliação': 'Delete review', 'Apagar a tua avaliação?': 'Delete your review?', 'Avaliação guardada com sucesso.': 'Review saved successfully.', 'Avaliação apagada.': 'Review deleted.', 'Não foi possível guardar a avaliação.': 'Could not save the review.', 'Não foi possível apagar a avaliação.': 'Could not delete the review.', 'Escolhe uma avaliação entre 1 e 5 estrelas.': 'Choose a rating between 1 and 5 stars.', '{{count}} estrelas': '{{count}} stars', 'Tu': 'You',
-  'Anterior': 'Previous', 'Seguinte': 'Next', 'Página {{page}} de {{total}}': 'Page {{page}} of {{total}}',
-  'Paginação das receitas': 'Recipe pagination',
-  'Voltar ao topo': 'Back to top',
-  'A mostrar {{shown}} de {{count}} receitas': 'Showing {{shown}} of {{count}} recipes',
-  'Surpreende-me': 'Surprise me', 'Sugestão personalizada': 'Personalized suggestion', 'Descobre uma receita que não preparas há pelo menos 4 semanas.': 'Discover a recipe you have not made for at least 4 weeks.', 'Calorias máximas': 'Maximum calories', 'Ainda não experimentaste': 'You have not tried this yet', 'Está na altura de voltar a preparar': 'Time to make it again', 'bem avaliada': 'highly rated', 'Outra sugestão': 'Another suggestion', 'Não encontrámos uma receita que cumpra estes critérios. Experimenta aumentar as calorias máximas ou rever os ingredientes a evitar.': 'We could not find a recipe that matches these criteria. Try increasing the maximum calories or reviewing your ingredients to avoid.', 'Fechar': 'Close',
-  'Ingredientes a evitar': 'Ingredients to avoid', 'Não serão sugeridas receitas que incluam estes ingredientes.': 'Recipes containing these ingredients will not be suggested.', 'Ingredientes separados por vírgulas': 'Ingredients separated by commas', 'Ex.: cogumelos, atum, coentros': 'E.g. mushrooms, tuna, coriander', 'Guardar ingredientes': 'Save ingredients', 'Ingredientes a evitar guardados.': 'Ingredients to avoid saved.', 'Não foi possível guardar os ingredientes a evitar.': 'Could not save the ingredients to avoid.',
-  'Diz-nos ingredientes de que não gostas para não os incluirmos nas sugestões. Podes alterar mais tarde nas definições.': 'Tell us ingredients you do not like so we can avoid them in suggestions. You can change them later in settings.',
-  'Cria uma receita': 'Create a recipe', 'Nome': 'Name', 'Categoria': 'Category', 'Tipo': 'Type', 'Doce': 'Sweet', 'Salgada': 'Savoury', 'Tempo de preparação (min)': 'Preparation time (min)', 'Imagem da receita': 'Recipe image', '(opcional)': '(optional)', 'Opcional': 'Optional', 'Pré-visualização da receita': 'Recipe preview', 'Remover imagem': 'Remove image', 'Escolher uma imagem': 'Choose a recipe image', 'JPEG, PNG ou WebP · máximo 5 MB': 'JPEG, PNG or WebP · maximum 5 MB', 'Substituir imagem': 'Replace image', 'Valores por porção': 'Values per serving', 'Adicionar': 'Add', 'Quantidade': 'Quantity', 'Unidade': 'Unit', 'Ingrediente (PT)': 'Ingredient (PT)', 'Ingrediente (EN)': 'Ingredient (EN)', 'Ingrediente {{number}}': 'Ingredient {{number}}', 'Descreve os passos de preparação...': 'Describe the preparation steps...', 'Tornar receita pública': 'Make recipe public', 'Outros utilizadores poderão encontrá-la, mas apenas tu poderás alterá-la.': 'Other users will be able to find it, but only you can edit it.', 'A guardar...': 'Saving...', 'Criar receita': 'Create recipe', 'A autenticação não está configurada.': 'Authentication is not configured.', 'A tua sessão expirou. Inicia sessão novamente.': 'Your session has expired. Sign in again.', 'Não foi possível guardar a receita.': 'Could not save the recipe.', 'Escolhe uma imagem JPEG, PNG ou WebP.': 'Choose a JPEG, PNG or WebP image.', 'A imagem não pode ter mais de 5 MB.': 'The image cannot exceed 5 MB.',
-  'Preferências': 'Preferences', 'Atualiza os teus dados, recalcula o plano ou define objetivos manualmente.': 'Update your details, recalculate your plan or set goals manually.', 'Vamos personalizar o teu plano': "Let's personalize your plan", 'Responde a algumas perguntas para estimarmos os teus objetivos.': 'Answer a few questions so we can estimate your goals.', 'Criar o meu plano': 'Create my plan',
-  'Ano de nascimento': 'Year of birth', 'Fórmula metabólica': 'Metabolic formula', 'Feminina': 'Female', 'Masculina': 'Male', 'Altura (cm)': 'Height (cm)', 'Peso atual (kg)': 'Current weight (kg)', 'Nível de atividade': 'Activity level', 'Sedentário': 'Sedentary', 'Ligeiramente ativo (1–3 dias/semana)': 'Lightly active (1–3 days/week)', 'Moderadamente ativo (3–5 dias/semana)': 'Moderately active (3–5 days/week)', 'Muito ativo (6–7 dias/semana)': 'Very active (6–7 days/week)', 'Extremamente ativo': 'Extremely active', 'Objetivo': 'Goal', 'Perder peso gradualmente': 'Lose weight gradually', 'Manter o peso': 'Maintain weight', 'Ganhar peso gradualmente': 'Gain weight gradually', 'Como queres definir os teus objetivos diários?': 'How would you like to set your daily goals?', 'Podemos estimá-los com as respostas acima ou podes introduzir um plano que já tenhas definido.': 'We can estimate them from your answers or you can enter an existing plan.', 'Calcular por mim': 'Calculate for me', 'Usar idade, corpo, atividade e objetivo.': 'Use age, body, activity and goal.', 'Já tenho valores definidos': 'I already have target values', 'Introduzir calorias e macros manualmente.': 'Enter calories and macros manually.', 'Os teus objetivos diários': 'Your daily goals', 'Objetivos diários estimados': 'Estimated daily goals', 'Introduz os valores do teu plano atual.': 'Enter the values from your current plan.', 'Calculados a partir das respostas acima.': 'Calculated from the answers above.', 'Ao alterar as calorias, proteína, hidratos e gordura são recalculados com base no teu peso e na nova meta calórica. Depois podes editar cada macro individualmente.': 'When calories change, protein, carbs and fat are recalculated using your weight and new calorie target. You can then edit each macro individually.', 'Estimativa para adultos saudáveis baseada em equações populacionais. Necessidades reais podem variar; gravidez, amamentação, condições clínicas ou histórico de perturbações alimentares requerem acompanhamento profissional.': 'Estimate for healthy adults based on population equations. Actual needs may vary; pregnancy, breastfeeding, medical conditions or a history of eating disorders require professional guidance.', 'Alterações guardadas com sucesso.': 'Changes saved successfully.', 'Não foi possível guardar as alterações.': 'Could not save changes.', 'Fechar notificação': 'Close notification',
-  'Bem-vinda de volta': 'Welcome back', 'Cria a tua conta': 'Create your account', 'Iniciar sessão': 'Sign in', 'Começar agora': 'Get started', 'Acede às tuas receitas e ao diário de refeições.': 'Access your recipes and meal diary.', 'Guarda os teus objetivos e acompanha cada refeição.': 'Save your goals and track every meal.', 'O teu nome': 'Your name', 'Palavra-passe': 'Password', 'Mínimo de 8 caracteres': 'At least 8 characters', 'Esconder palavra-passe': 'Hide password', 'Mostrar palavra-passe': 'Show password', 'Entrar': 'Sign in', 'Criar conta': 'Create account', 'Ainda não tens conta?': "Don't have an account yet?", 'Já tens uma conta?': 'Already have an account?', 'Regista-te': 'Sign up', 'Inicia sessão': 'Sign in', 'Não foi possível contactar o serviço de autenticação. Tenta novamente.': 'Could not contact the authentication service. Try again.', 'Email ou palavra-passe incorretos.': 'Incorrect email or password.', 'Já existe uma conta com este email.': 'An account with this email already exists.', 'Confirma que o endereço de email está correto.': 'Check that the email address is correct.', 'Não foi possível concluir a operação. Tenta novamente.': 'Could not complete the operation. Try again.',
-  'Falta configurar o Neon': 'Neon setup required', 'A carregar a tua sessão...': 'Loading your session...', 'A preparar o teu perfil...': 'Preparing your profile...', 'Não foi possível carregar o perfil': 'Could not load profile', 'Tentar novamente': 'Try again', 'Utilizador': 'User', 'Idioma': 'Language',
-  'Nome em inglês (opcional)': 'English name (optional)',
-  'Preparação em inglês (opcional)': 'English method (optional)', 'Observações (opcional)': 'Notes (optional)', 'Observações em inglês (opcional)': 'English notes (optional)', 'Ex.: substituições, sugestões ou informação adicional...': 'E.g. substitutions, serving suggestions or extra information...',
-  'Dia': 'Day', 'Semana': 'Week', 'Semana atual': 'Current week', 'Semana anterior': 'Previous week', 'Semana seguinte': 'Next week', 'Sem refeições': 'No meals', 'Ver dia': 'View day',
-  'Dia anterior': 'Previous day', 'Dia seguinte': 'Next day',
-  'Gerar plano': 'Generate plan', 'Sugerir dia': 'Suggest day', 'Planeamento automático': 'Automatic planning', 'Gerar plano da semana': 'Generate weekly plan', 'Vamos preencher apenas refeições futuras em falta, com base nas tuas metas e preferências.': 'We will fill only missing future meals, based on your targets and preferences.', 'Vamos preencher apenas as refeições em falta deste dia, com base nas tuas metas e preferências.': 'We will fill only the missing meals for this day, based on your targets and preferences.', '{{count}} refeições serão planeadas': '{{count}} meals will be planned', '{{count}} refeições serão planeadas_plural': '{{count}} meals will be planned', 'Não alteramos refeições que já existam e ignoramos ingredientes a evitar.': 'We do not change meals that already exist and ignore ingredients to avoid.', 'Não há refeições futuras em falta nesta semana ou não encontrámos receitas compatíveis.': 'There are no missing future meals this week, or we could not find matching recipes.', 'Não há refeições em falta neste dia ou não encontrámos receitas compatíveis.': 'There are no missing meals for this day, or we could not find matching recipes.', 'Gerar outra opção': 'Generate another option', 'Criar plano': 'Create plan', 'Não foi possível gerar o plano.': 'Could not generate the plan.',
-  'Arrasta uma refeição para outro dia ou tipo de refeição.': 'Drag a meal to another day or meal type.', 'Largar aqui': 'Drop here', 'Não foi possível mover a refeição.': 'Could not move the meal.',
-  'Trocar receita': 'Swap recipe', 'Não encontrámos outra receita compatível para esta refeição.': 'We could not find another compatible recipe for this meal.', 'Não foi possível trocar a receita.': 'Could not swap the recipe.',
-  'Estado': 'Status', 'Planeada': 'Planned', 'Consumida': 'Consumed', 'Marcar como consumida': 'Mark as consumed', 'Marcar como planeada': 'Mark as planned', 'Já consumiste esta refeição?': 'Have you consumed this meal?', 'Sim, marcar como consumida': 'Yes, mark as consumed', 'Não, manter planeada': 'No, keep planned', 'Avaliar mais tarde': 'Rate later', 'Refeição planeada com sucesso.': 'Meal planned successfully.', 'Não foi possível atualizar o estado da refeição.': 'Could not update the meal status.', 'Totais previstos': 'Planned totals',
-  'As minhas': 'Mine', 'Públicas': 'Public', 'Duplicar receita': 'Duplicate recipe', 'Receita duplicada com sucesso. A cópia é privada.': 'Recipe duplicated successfully. The copy is private.', 'Não foi possível duplicar a receita.': 'Could not duplicate the recipe.', 'Tradução inglesa completa': 'Complete English translation', 'Tradução inglesa em falta': 'English translation missing', 'Experimenta alterar os filtros ou criar uma receita.': 'Try changing the filters or creating a recipe.', 'prot.': 'prot.', 'hidr.': 'carbs', 'gord.': 'fat',
-  'Sobre as receitas': 'About recipes',
-  'As macros apresentadas em todas as receitas são por porção.\nEm cada receita está indicado o número de porções que os ingredientes rendem, assim como o tempo médio de preparação (apenas para referência).\nOs ingredientes assinalados como opcionais não estão incluídos nas macros — estão apenas sugeridos para dar mais sabor ou para usares como alternativa a algum ingrediente.\nOs toppings estão incluídos nas macros, excepto quando indicados como opcionais.': 'The macros shown for every recipe are per serving.\nEach recipe shows the number of servings the ingredients make, as well as the average preparation time (for reference only).\nIngredients marked as optional are not included in the macros — they are suggested only for extra flavour or as an alternative to another ingredient.\nToppings are included in the macros unless they are marked as optional.',
-  'Artigo': 'Item', 'A tua despensa está vazia': 'Your pantry is empty', 'Regista o que tens em casa para darmos prioridade a esses ingredientes nas sugestões.': 'Track what you have at home so we can prioritise those ingredients in suggestions.', 'Adiciona ingredientes para os usarmos nas sugestões de receitas.': 'Add ingredients so we can use them in recipe suggestions.', 'Atenção à validade': 'Watch expiry dates', '{{count}} artigo(s) terminam nos próximos 7 dias.': '{{count}} item expires in the next 7 days', '{{count}} artigo(s) terminam nos próximos 7 dias._plural': '{{count}} items expire in the next 7 days', 'Validade': 'Expiry', 'Validade (opcional)': 'Expiry date (optional)', 'Editar artigo': 'Edit item', 'Guardar': 'Save', 'Preenche um nome e uma quantidade válida.': 'Enter a name and a valid quantity.', 'Não foi possível guardar o artigo na despensa.': 'Could not save the pantry item.', 'Não foi possível apagar o artigo.': 'Could not delete the item.', 'Ex.: arroz, iogurte, tomate': 'E.g. rice, yogurt, tomatoes',
-  'Na despensa': 'In pantry', 'No carrinho': 'In cart',
-  'Stock': 'Stock', 'O teu stock está vazio': 'Your stock is empty', 'Em stock': 'In stock', 'Usa ingredientes que tens em stock.': 'Uses ingredients you have in stock.', 'Não foi possível guardar o artigo em stock.': 'Could not save the stock item.',
-  'Lembretes': 'Reminders', 'Escolhe se queres receber notificações para acompanhar o teu dia.': 'Choose whether you want to receive notifications to track your day.', 'Ativar notificações': 'Enable notifications', 'Desativar lembretes': 'Disable reminders', 'Lembretes desativados.': 'Reminders disabled.', 'Testar': 'Test', 'Esta é uma notificação de teste.': 'This is a test notification.', 'Notificação de teste enviada.': 'Test notification sent.', 'Notificação push de teste enviada.': 'Push test notification sent.', 'Não foi possível enviar a notificação. Verifica as permissões do navegador e do sistema.': 'Could not send the notification. Check browser and system permissions.', 'Não foi possível enviar a notificação push de teste.': 'Could not send the push test notification.', 'Não foi possível ativar as notificações push.': 'Could not enable push notifications.', 'Falta configurar as notificações push.': 'Push notifications still need to be configured.', 'Este navegador não suporta notificações push.': 'This browser does not support push notifications.', 'Notificações ativas': 'Notifications enabled', 'Notificações ativadas com sucesso.': 'Notifications enabled successfully.', 'Permite as notificações nas definições do navegador para receber lembretes.': 'Allow notifications in your browser settings to receive reminders.', 'Refeições': 'Meals', 'Lembra-te de registar uma refeição caso ainda não o tenhas feito.': 'Get a reminder if you have not logged a meal yet.', 'Recebe um lembrete se ainda não tiveres atingido o objetivo de água.': 'Get a reminder if you have not reached your water goal yet.', 'Repetir a cada': 'Repeat every', 'Recebe um lembrete de hora a hora entre as 08:00 e as 22:00, até atingires o objetivo.': 'Get an hourly reminder between 08:00 and 22:00 until you reach your goal.', 'Recebe um lembrete semanal ao domingo para registar o peso.': 'Get a weekly reminder on Sunday to log your weight.',
-  'Validade do stock': 'Stock expiry', 'Recebe um lembrete diário às 09:00 quando existirem produtos a terminar nos próximos 7 dias.': 'Get a daily reminder at 09:00 when products are due to expire in the next 7 days.',
+  "Nutrição sem complicações": "Nutrition made simple",
+  Resumo: "Overview",
+  Receitas: "Recipes",
+  Diário: "Diary",
+  Definições: "Settings",
+  "Terminar sessão": "Sign out",
+  "O teu dia nutricional": "Your nutrition today",
+  "Olá! O que vamos comer?": "Hello! What are we eating?",
+  "Acompanha as refeições e mantém os teus objetivos à vista.":
+    "Track your meals and keep your goals in sight.",
+  "Registar refeição": "Log meal",
+  "Calorias restantes": "Calories remaining",
+  "Consumiste {{consumed}} das {{goal}} kcal planeadas.":
+    "You consumed {{consumed}} of {{goal}} planned kcal.",
+  Macronutrientes: "Macronutrients",
+  Proteína: "Protein",
+  Hidratos: "Carbs",
+  Gordura: "Fat",
+  "Refeições de hoje": "Today's meals",
+  "{{count}} registo(s)": "{{count}} entry",
+  "{{count}} registo(s)_plural": "{{count}} entries",
+  "Ainda não registaste nenhuma refeição.": "You haven't logged any meals yet.",
+  "Ver diário": "View diary",
+  "Pesquisa uma receita para começares o teu dia.":
+    "Find a recipe to start your day.",
+  "{{count}} porção(ões)": "{{count}} serving",
+  "{{count}} porção(ões)_plural": "{{count}} servings",
+  Histórico: "History",
+  "Diário de refeições": "Meal diary",
+  "Consulta e gere tudo o que registaste.":
+    "View and manage everything you have logged.",
+  Compras: "Shopping",
+  Planeamento: "Planning",
+  "Lista de compras": "Shopping list",
+  "Adiciona as refeições que queres comprar a partir da vista semanal do diário.":
+    "Add the meals you want to shop for from the weekly diary view.",
+  "{{count}} refeição(ões) adicionada(s)": "{{count}} meal added",
+  "{{count}} refeição(ões) adicionada(s)_plural": "{{count}} meals added",
+  "{{count}} refeição(ões) adicionada(s) à lista de compras.":
+    "{{count}} meal added to your shopping list.",
+  "{{count}} refeição(ões) adicionada(s) à lista de compras._plural":
+    "{{count}} meals added to your shopping list.",
+  "{{count}} ingrediente(s) na lista": "{{count}} ingredient on the list",
+  "{{count}} ingrediente(s) na lista_plural":
+    "{{count}} ingredients on the list",
+  "{{count}} receita(s) planeada(s)": "{{count}} planned recipe",
+  "{{count}} receita(s) planeada(s)_plural": "{{count}} planned recipes",
+  "Por receita": "By recipe",
+  "Limpar itens assinalados": "Clear checked items",
+  "Limpar lista": "Clear list",
+  "A lista de compras está vazia": "Your shopping list is empty",
+  "Abre a vista semanal do diário e adiciona as refeições futuras que queres comprar.":
+    "Open the weekly diary view and add the future meals you want to shop for.",
+  "Adicionar semana às compras": "Add week to shopping list",
+  "Não existem refeições futuras nesta semana.":
+    "There are no future meals this week.",
+  "Ainda não tens refeições planeadas": "You do not have any planned meals yet",
+  "Regista receitas numa data futura para criares automaticamente a lista de compras.":
+    "Log recipes on a future date to automatically create your shopping list.",
+  "Ver receitas": "View recipes",
+  "Marcar ingrediente {{name}}": "Mark {{name}}",
+  "Ingredientes com g, kg, ml ou L são somados automaticamente quando o nome é igual.":
+    "Ingredients with g, kg, ml or L are automatically totalled when their name matches.",
+  Calorias: "Calories",
+  "Sem registos.": "No entries.",
+  "Editar registo": "Edit entry",
+  "Remover refeição": "Remove meal",
+  "Não foi possível apagar o registo.": "Could not delete the entry.",
+  "Adicionar refeição": "Add meal",
+  "Pesquisar receitas": "Search recipes",
+  "Refeição manual": "Manual meal",
+  Manual: "Manual",
+  "Nome da refeição": "Meal name",
+  "Valores introduzidos manualmente.": "Values entered manually.",
+  "Os macros são opcionais. Se não os souberes, podes deixar em branco.":
+    "Macros are optional. Leave them blank if you do not know them.",
+  "Indica o nome e as calorias da refeição.":
+    "Enter the meal name and calories.",
+  "Introduz valores nutricionais válidos.": "Enter valid nutritional values.",
+  "Estimar com IA": "Estimate with AI",
+  "Descreve o que comeste e a IA preenche uma estimativa que podes alterar antes de guardar.":
+    "Describe what you ate and AI will fill in an estimate that you can edit before saving.",
+  "Ex.: comi uma sandes de frango grelhado com queijo e um galão.":
+    "E.g. I had a grilled chicken and cheese sandwich and a latte.",
+  "A estimar...": "Estimating...",
+  "Estimar valores": "Estimate values",
+  "Descreve primeiro o que comeste.": "Describe what you ate first.",
+  "Não foi possível obter uma estimativa agora.":
+    "Could not get an estimate right now.",
+  "A estimativa por IA só está disponível no ambiente Vercel. Faz deploy ou inicia com vercel dev.":
+    "AI estimation is only available in the Vercel environment. Deploy the app or start it with vercel dev.",
+  "Pesquisa uma receita para registar no diário.":
+    "Search for a recipe to log in your diary.",
+  "Nenhuma receita encontrada.": "No recipes found.",
+  Favoritas: "Favorites",
+  "Adicionar aos favoritos": "Add to favorites",
+  "Remover dos favoritos": "Remove from favorites",
+  "Não foi possível atualizar os favoritos.": "Could not update favorites.",
+  "Ordenar por": "Sort by",
+  "Mais recentes": "Most recent",
+  "Preparação mais rápida": "Quickest preparation",
+  "Mais calorias": "Most calories",
+  "Menos calorias": "Fewest calories",
+  "Mais proteína": "Most protein",
+  "Menos proteína": "Least protein",
+  "Peso inicial (kg)": "Starting weight (kg)",
+  "Peso guardado e objetivos recalculados.":
+    "Weight saved and goals recalculated.",
+  "Peso guardado e objetivo de água atualizado.":
+    "Weight saved and water goal updated.",
+  "Não foi possível atualizar os objetivos.": "Could not update goals.",
+  "Medidas corporais (opcional)": "Body measurements (optional)",
+  "Cintura (cm)": "Waist (cm)",
+  "Anca (cm)": "Hips (cm)",
+  "Abdominal (cm)": "Abdomen (cm)",
+  "Braço (cm)": "Arm (cm)",
+  "Coxa (cm)": "Thigh (cm)",
+  "Gémeo (cm)": "Calf (cm)",
+  "Guardar registo": "Save entry",
+  Estatísticas: "Statistics",
+  "Baseadas apenas em dias já fechados.": "Based only on completed days.",
+  "Receita mais consumida": "Most consumed recipe",
+  "Média diária de calorias": "Average daily calories",
+  "Média diária de proteína": "Average daily protein",
+  "Média diária de hidratos": "Average daily carbs",
+  "Média diária de gordura": "Average daily fat",
+  "Média semanal de calorias": "Average weekly calories",
+  "Peso ao longo do tempo": "Weight over time",
+  "Dias dentro do objetivo": "Days within target",
+  "Aderência aos objetivos": "Goal adherence",
+  "Sequência atual": "Current streak",
+  "Por dia registado": "Per logged day",
+  "Por semana registada": "Per logged week",
+  "Calorias até 10% da meta": "Calories within 10% of target",
+  "Dias seguidos dentro do objetivo": "Consecutive days within target",
+  "Sem dados ainda": "No data yet",
+  "{{count}} vez(es)": "{{count}} time",
+  "{{count}} vez(es)_plural": "{{count}} times",
+  "{{count}} dia(s)": "{{count}} day",
+  "{{count}} dia(s)_plural": "{{count}} days",
+  Progresso: "Progress",
+  Aprender: "Learn",
+  "Sabias que…?": "Did you know…?",
+  "Uma curiosidade de nutrição por dia.": "One nutrition fact per day.",
+  "Uma dica baseada no teu dia anterior.": "A tip based on your previous day.",
+  "Ontem ficaste abaixo da tua meta de proteína":
+    "Yesterday you were below your protein target",
+  "A proteína contribui para a manutenção e recuperação muscular, além de ajudar na saciedade. Uma distribuição mais equilibrada pelas refeições pode tornar a meta mais fácil de atingir.":
+    "Protein supports muscle maintenance and recovery, and can also help with fullness. Spreading protein more evenly across meals can make your target easier to reach.",
+  "Hoje, tenta incluir uma fonte de proteína em cada refeição principal.":
+    "Today, try to include a protein source at each main meal.",
+  "Em resumo": "In short",
+  "A curiosidade muda automaticamente amanhã.":
+    "The fact changes automatically tomorrow.",
+  "Histórico de peso": "Weight history",
+  "Regista o teu peso e acompanha a evolução ao longo do tempo.":
+    "Log your weight and track your progress over time.",
+  Evolução: "Progress",
+  "Sem registos ainda": "No entries yet",
+  Registos: "Entries",
+  Variação: "Change",
+  "Adicionar registo": "Add entry",
+  Data: "Date",
+  "Peso (kg)": "Weight (kg)",
+  "Guardar peso": "Save weight",
+  "Peso guardado com sucesso.": "Weight saved successfully.",
+  "Ainda não existem registos de peso.": "There are no weight entries yet.",
+  "Apagar registo de peso": "Delete weight entry",
+  "Adiciona pelo menos dois registos\npara veres o gráfico.":
+    "Add at least two entries\nto see the chart.",
+  "Sugestões para o jantar": "Dinner suggestions",
+  "Receitas escolhidas com base no que falta para os teus objetivos de hoje.":
+    "Recipes selected based on what is left to reach your goals today.",
+  "Compatível com os teus ingredientes a evitar.":
+    "Compatible with your ingredient preferences.",
+  "Não a consumiste nas últimas 4 semanas.":
+    "You have not consumed it in the last 4 weeks.",
+  "Ajuda a atingir a proteína que te falta hoje.":
+    "Helps you reach the protein you still need today.",
+  "Bem avaliada ({{rating}}/5).": "Highly rated ({{rating}}/5).",
+  "Usa {{count}} ingrediente(s) com validade próxima.":
+    "Uses {{count}} ingredient close to expiry",
+  "Usa {{count}} ingrediente(s) com validade próxima._plural":
+    "Uses {{count}} ingredients close to expiry",
+  "Usa ingredientes que tens na despensa.":
+    "Uses ingredients you have in your pantry.",
+  Água: "Water",
+  "{{consumed}} ml de {{goal}} ml": "{{consumed}} ml of {{goal}} ml",
+  "{{count}} movimento(s)": "{{count}} entry",
+  "{{count}} movimento(s)_plural": "{{count}} entries",
+  "Apagar registo de água": "Delete water entry",
+  "Não foi possível apagar o registo de água.":
+    "Could not delete the water entry.",
+  "Ainda não registaste água neste dia.":
+    "You have not logged water for this day yet.",
+  "Outro valor": "Other amount",
+  "Adicionar água": "Add water",
+  "Quantidade de água (ml)": "Water amount (ml)",
+  "Introduz uma quantidade de água válida.": "Enter a valid water amount.",
+  "Não foi possível atualizar a água.": "Could not update water intake.",
+  "Objetivo diário de água": "Daily water goal",
+  "Define a quantidade de água que queres acompanhar todos os dias.":
+    "Set the amount of water you want to track every day.",
+  "Água por dia (ml)": "Water per day (ml)",
+  "Guardar objetivo de água": "Save water goal",
+  "Objetivo de água guardado.": "Water goal saved.",
+  "Não foi possível guardar o objetivo de água.": "Could not save water goal.",
+  "Não podes guardar registos em datas futuras.":
+    "You cannot save entries for future dates.",
+  "Variação das medidas": "Measurement changes",
+  Partilhar: "Share",
+  "Editar registo de progresso": "Edit progress entry",
+  Cancelar: "Cancel",
+  "Porções para a lista": "Servings for shopping list",
+  "Aumentar porções": "Increase servings",
+  "Reduzir porções": "Decrease servings",
+  "porções na lista": "servings in list",
+  "Adicionar à lista de compras": "Add to shopping list",
+  "Receita adicionada à lista de compras.":
+    "Recipe added to the shopping list.",
+  "Não foi possível adicionar a receita à lista de compras.":
+    "Could not add the recipe to the shopping list.",
+  "Adicionada diretamente": "Added directly",
+  "Adicionado manualmente": "Added manually",
+  "Adicionar artigo": "Add item",
+  "Remover artigo": "Remove item",
+  "Ex.: detergente, papel higiénico...": "E.g. detergent, toilet paper...",
+  "Remover receita da lista": "Remove recipe from list",
+  "Fruta e legumes": "Fruit and vegetables",
+  "Laticínios e ovos": "Dairy and eggs",
+  "Carne, peixe e alternativas": "Meat, fish and alternatives",
+  "Cereais e padaria": "Grains and bakery",
+  Despensa: "Pantry",
+  Outros: "Other",
+  "Pequeno-almoço": "Breakfast",
+  Almoço: "Lunch",
+  Lanche: "Snack",
+  Jantar: "Dinner",
+  "Pequeno Almoço": "Breakfast",
+  "Almoço/Jantar": "Lunch/Dinner",
+  Snacks: "Snacks",
+  Sobremesas: "Desserts",
+  "Dia da refeição": "Meal date",
+  Hoje: "Today",
+  Ontem: "Yesterday",
+  "Tipo de refeição": "Meal type",
+  "Número de porções": "Number of servings",
+  proteína: "protein",
+  hidratos: "carbs",
+  gordura: "fat",
+  "Registo alterado com sucesso.": "Entry updated successfully.",
+  "Refeição registada com sucesso.": "Meal logged successfully.",
+  "Não foi possível registar a refeição.": "Could not log the meal.",
+  "Se ainda não a consumiste, ficará planeada no diário.":
+    "If you have not consumed it yet, it will remain planned in your diary.",
+  "Alterações guardadas": "Changes saved",
+  Registado: "Logged",
+  "Guardar alterações": "Save changes",
+  "Adicionar ao diário": "Add to diary",
+  Biblioteca: "Library",
+  "Encontra a próxima refeição": "Find your next meal",
+  "Pesquisa pelo nome da receita ou por um ingrediente.":
+    "Search by recipe name or ingredient.",
+  "Nova receita": "New recipe",
+  "Ex.: frango, aveia, salmão...": "E.g. chicken, oats, salmon...",
+  Todas: "All",
+  "{{count}} receita(s) encontrada(s)": "{{count}} recipe found",
+  "{{count}} receita(s) encontrada(s)_plural": "{{count}} recipes found",
+  "A carregar receitas...": "Loading recipes...",
+  "Ainda não existem receitas": "There are no recipes yet",
+  "Cria a primeira receita para começares.":
+    "Create the first recipe to get started.",
+  Ver: "View",
+  Registar: "Log",
+  "Ver receita {{name}}": "View {{name}} recipe",
+  "Editar receita": "Edit recipe",
+  "Apagar receita": "Delete recipe",
+  "A apagar...": "Deleting...",
+  "Apagar “{{name}}”?": "Delete “{{name}}”?",
+  "Não foi possível apagar.": "Could not delete.",
+  "Já existe uma receita com este nome.":
+    "A recipe with this name already exists.",
+  "Voltar às receitas": "Back to recipes",
+  Editar: "Edit",
+  Ingredientes: "Ingredients",
+  Preparação: "Method",
+  Observações: "Notes",
+  "Ainda não foram adicionadas instruções de preparação.":
+    "No preparation instructions have been added yet.",
+  "A carregar receita...": "Loading recipe...",
+  "Partilhar receita": "Share recipe",
+  "Vê esta receita no Meal Tracker.": "Check out this recipe on Meal Tracker.",
+  "Link copiado. Quem o receber terá de criar conta ou iniciar sessão para ver a receita.":
+    "Link copied. Anyone who receives it will need to create an account or sign in to view the recipe.",
+  "Não foi possível partilhar a receita.": "Could not share the recipe.",
+  Avaliações: "Reviews",
+  "Ainda não existem avaliações.": "There are no reviews yet.",
+  "Sê a primeira pessoa a avaliar esta receita.":
+    "Be the first to review this recipe.",
+  "{{average}} de 5 · {{count}} avaliação(ões)":
+    "{{average}} out of 5 · {{count}} review",
+  "{{average}} de 5 · {{count}} avaliação(ões)_plural":
+    "{{average}} out of 5 · {{count}} reviews",
+  "Avalia esta receita": "Rate this recipe",
+  "Editar a tua avaliação": "Edit your review",
+  "Comentário (opcional)": "Comment (optional)",
+  "Partilha a tua opinião sobre esta receita...":
+    "Share your thoughts about this recipe...",
+  "Guardar avaliação": "Save review",
+  "Apagar avaliação": "Delete review",
+  "Apagar a tua avaliação?": "Delete your review?",
+  "Avaliação guardada com sucesso.": "Review saved successfully.",
+  "Avaliação apagada.": "Review deleted.",
+  "Não foi possível guardar a avaliação.": "Could not save the review.",
+  "Não foi possível apagar a avaliação.": "Could not delete the review.",
+  "Escolhe uma avaliação entre 1 e 5 estrelas.":
+    "Choose a rating between 1 and 5 stars.",
+  "{{count}} estrelas": "{{count}} stars",
+  Tu: "You",
+  Anterior: "Previous",
+  Seguinte: "Next",
+  "Página {{page}} de {{total}}": "Page {{page}} of {{total}}",
+  "Paginação das receitas": "Recipe pagination",
+  "Voltar ao topo": "Back to top",
+  "A mostrar {{shown}} de {{count}} receitas":
+    "Showing {{shown}} of {{count}} recipes",
+  "Surpreende-me": "Surprise me",
+  "Sugestão personalizada": "Personalized suggestion",
+  "Descobre uma receita que não preparas há pelo menos 4 semanas.":
+    "Discover a recipe you have not made for at least 4 weeks.",
+  "Calorias máximas": "Maximum calories",
+  "Ainda não experimentaste": "You have not tried this yet",
+  "Está na altura de voltar a preparar": "Time to make it again",
+  "bem avaliada": "highly rated",
+  "Outra sugestão": "Another suggestion",
+  "Não encontrámos uma receita que cumpra estes critérios. Experimenta aumentar as calorias máximas ou rever os ingredientes a evitar.":
+    "We could not find a recipe that matches these criteria. Try increasing the maximum calories or reviewing your ingredients to avoid.",
+  Fechar: "Close",
+  "Ingredientes a evitar": "Ingredients to avoid",
+  "Não serão sugeridas receitas que incluam estes ingredientes.":
+    "Recipes containing these ingredients will not be suggested.",
+  "Ingredientes separados por vírgulas": "Ingredients separated by commas",
+  "Ex.: cogumelos, atum, coentros": "E.g. mushrooms, tuna, coriander",
+  "Guardar ingredientes": "Save ingredients",
+  "Ingredientes a evitar guardados.": "Ingredients to avoid saved.",
+  "Não foi possível guardar os ingredientes a evitar.":
+    "Could not save the ingredients to avoid.",
+  "Diz-nos ingredientes de que não gostas para não os incluirmos nas sugestões. Podes alterar mais tarde nas definições.":
+    "Tell us ingredients you do not like so we can avoid them in suggestions. You can change them later in settings.",
+  "Cria uma receita": "Create a recipe",
+  Nome: "Name",
+  Categoria: "Category",
+  Tipo: "Type",
+  Doce: "Sweet",
+  Salgada: "Savoury",
+  "Tempo de preparação (min)": "Preparation time (min)",
+  "Imagem da receita": "Recipe image",
+  "(opcional)": "(optional)",
+  Opcional: "Optional",
+  "Pré-visualização da receita": "Recipe preview",
+  "Remover imagem": "Remove image",
+  "Escolher uma imagem": "Choose a recipe image",
+  "JPEG, PNG ou WebP · máximo 5 MB": "JPEG, PNG or WebP · maximum 5 MB",
+  "Substituir imagem": "Replace image",
+  "Valores por porção": "Values per serving",
+  Adicionar: "Add",
+  Quantidade: "Quantity",
+  Unidade: "Unit",
+  "Ingrediente (PT)": "Ingredient (PT)",
+  "Ingrediente (EN)": "Ingredient (EN)",
+  "Ingrediente {{number}}": "Ingredient {{number}}",
+  "Descreve os passos de preparação...": "Describe the preparation steps...",
+  "Tornar receita pública": "Make recipe public",
+  "Outros utilizadores poderão encontrá-la, mas apenas tu poderás alterá-la.":
+    "Other users will be able to find it, but only you can edit it.",
+  "A guardar...": "Saving...",
+  "Criar receita": "Create recipe",
+  "A autenticação não está configurada.": "Authentication is not configured.",
+  "A tua sessão expirou. Inicia sessão novamente.":
+    "Your session has expired. Sign in again.",
+  "Não foi possível guardar a receita.": "Could not save the recipe.",
+  "Escolhe uma imagem JPEG, PNG ou WebP.": "Choose a JPEG, PNG or WebP image.",
+  "A imagem não pode ter mais de 5 MB.": "The image cannot exceed 5 MB.",
+  Preferências: "Preferences",
+  "Atualiza os teus dados, recalcula o plano ou define objetivos manualmente.":
+    "Update your details, recalculate your plan or set goals manually.",
+  "Vamos personalizar o teu plano": "Let's personalize your plan",
+  "Responde a algumas perguntas para estimarmos os teus objetivos.":
+    "Answer a few questions so we can estimate your goals.",
+  "Criar o meu plano": "Create my plan",
+  "Ano de nascimento": "Year of birth",
+  "Fórmula metabólica": "Metabolic formula",
+  Feminina: "Female",
+  Masculina: "Male",
+  "Altura (cm)": "Height (cm)",
+  "Peso atual (kg)": "Current weight (kg)",
+  "Nível de atividade": "Activity level",
+  Sedentário: "Sedentary",
+  "Ligeiramente ativo (1–3 dias/semana)": "Lightly active (1–3 days/week)",
+  "Moderadamente ativo (3–5 dias/semana)": "Moderately active (3–5 days/week)",
+  "Muito ativo (6–7 dias/semana)": "Very active (6–7 days/week)",
+  "Extremamente ativo": "Extremely active",
+  Objetivo: "Goal",
+  "Perder peso gradualmente": "Lose weight gradually",
+  "Manter o peso": "Maintain weight",
+  "Ganhar peso gradualmente": "Gain weight gradually",
+  "Como queres definir os teus objetivos diários?":
+    "How would you like to set your daily goals?",
+  "Podemos estimá-los com as respostas acima ou podes introduzir um plano que já tenhas definido.":
+    "We can estimate them from your answers or you can enter an existing plan.",
+  "Calcular por mim": "Calculate for me",
+  "Usar idade, corpo, atividade e objetivo.":
+    "Use age, body, activity and goal.",
+  "Já tenho valores definidos": "I already have target values",
+  "Introduzir calorias e macros manualmente.":
+    "Enter calories and macros manually.",
+  "Os teus objetivos diários": "Your daily goals",
+  "Objetivos diários estimados": "Estimated daily goals",
+  "Introduz os valores do teu plano atual.":
+    "Enter the values from your current plan.",
+  "Calculados a partir das respostas acima.":
+    "Calculated from the answers above.",
+  "Ao alterar as calorias, proteína, hidratos e gordura são recalculados com base no teu peso e na nova meta calórica. Depois podes editar cada macro individualmente.":
+    "When calories change, protein, carbs and fat are recalculated using your weight and new calorie target. You can then edit each macro individually.",
+  "Estimativa para adultos saudáveis baseada em equações populacionais. Necessidades reais podem variar; gravidez, amamentação, condições clínicas ou histórico de perturbações alimentares requerem acompanhamento profissional.":
+    "Estimate for healthy adults based on population equations. Actual needs may vary; pregnancy, breastfeeding, medical conditions or a history of eating disorders require professional guidance.",
+  "Alterações guardadas com sucesso.": "Changes saved successfully.",
+  "Não foi possível guardar as alterações.": "Could not save changes.",
+  "Fechar notificação": "Close notification",
+  "Bem-vinda de volta": "Welcome back",
+  "Cria a tua conta": "Create your account",
+  "Iniciar sessão": "Sign in",
+  "Começar agora": "Get started",
+  "Acede às tuas receitas e ao diário de refeições.":
+    "Access your recipes and meal diary.",
+  "Guarda os teus objetivos e acompanha cada refeição.":
+    "Save your goals and track every meal.",
+  "O teu nome": "Your name",
+  "Palavra-passe": "Password",
+  "Mínimo de 8 caracteres": "At least 8 characters",
+  "Esconder palavra-passe": "Hide password",
+  "Mostrar palavra-passe": "Show password",
+  Entrar: "Sign in",
+  "Criar conta": "Create account",
+  "Ainda não tens conta?": "Don't have an account yet?",
+  "Já tens uma conta?": "Already have an account?",
+  "Regista-te": "Sign up",
+  "Inicia sessão": "Sign in",
+  "Não foi possível contactar o serviço de autenticação. Tenta novamente.":
+    "Could not contact the authentication service. Try again.",
+  "Email ou palavra-passe incorretos.": "Incorrect email or password.",
+  "Já existe uma conta com este email.":
+    "An account with this email already exists.",
+  "Confirma que o endereço de email está correto.":
+    "Check that the email address is correct.",
+  "Não foi possível concluir a operação. Tenta novamente.":
+    "Could not complete the operation. Try again.",
+  "Falta configurar o Neon": "Neon setup required",
+  "A carregar a tua sessão...": "Loading your session...",
+  "A preparar o teu perfil...": "Preparing your profile...",
+  "Não foi possível carregar o perfil": "Could not load profile",
+  "Tentar novamente": "Try again",
+  Utilizador: "User",
+  Idioma: "Language",
+  "Nome em inglês (opcional)": "English name (optional)",
+  "Preparação em inglês (opcional)": "English method (optional)",
+  "Observações (opcional)": "Notes (optional)",
+  "Observações em inglês (opcional)": "English notes (optional)",
+  "Ex.: substituições, sugestões ou informação adicional...":
+    "E.g. substitutions, serving suggestions or extra information...",
+  Dia: "Day",
+  Semana: "Week",
+  "Semana atual": "Current week",
+  "Semana anterior": "Previous week",
+  "Semana seguinte": "Next week",
+  "Sem refeições": "No meals",
+  "Ver dia": "View day",
+  "Dia anterior": "Previous day",
+  "Dia seguinte": "Next day",
+  "Gerar plano": "Generate plan",
+  "Sugerir dia": "Suggest day",
+  "Planeamento automático": "Automatic planning",
+  "Gerar plano da semana": "Generate weekly plan",
+  "Vamos preencher apenas refeições futuras em falta, com base nas tuas metas e preferências.":
+    "We will fill only missing future meals, based on your targets and preferences.",
+  "Vamos preencher apenas as refeições em falta deste dia, com base nas tuas metas e preferências.":
+    "We will fill only the missing meals for this day, based on your targets and preferences.",
+  "{{count}} refeições serão planeadas": "{{count}} meals will be planned",
+  "{{count}} refeições serão planeadas_plural":
+    "{{count}} meals will be planned",
+  "Não alteramos refeições que já existam e ignoramos ingredientes a evitar.":
+    "We do not change meals that already exist and ignore ingredients to avoid.",
+  "Não há refeições futuras em falta nesta semana ou não encontrámos receitas compatíveis.":
+    "There are no missing future meals this week, or we could not find matching recipes.",
+  "Não há refeições em falta neste dia ou não encontrámos receitas compatíveis.":
+    "There are no missing meals for this day, or we could not find matching recipes.",
+  "Gerar outra opção": "Generate another option",
+  "Criar plano": "Create plan",
+  "Não foi possível gerar o plano.": "Could not generate the plan.",
+  "Arrasta uma refeição para outro dia ou tipo de refeição.":
+    "Drag a meal to another day or meal type.",
+  "Largar aqui": "Drop here",
+  "Não foi possível mover a refeição.": "Could not move the meal.",
+  "Trocar receita": "Swap recipe",
+  "Não encontrámos outra receita compatível para esta refeição.":
+    "We could not find another compatible recipe for this meal.",
+  "Não foi possível trocar a receita.": "Could not swap the recipe.",
+  Estado: "Status",
+  Planeada: "Planned",
+  Consumida: "Consumed",
+  "Marcar como consumida": "Mark as consumed",
+  "Marcar como planeada": "Mark as planned",
+  "Já consumiste esta refeição?": "Have you consumed this meal?",
+  "Sim, marcar como consumida": "Yes, mark as consumed",
+  "Não, manter planeada": "No, keep planned",
+  "Avaliar mais tarde": "Rate later",
+  "Refeição planeada com sucesso.": "Meal planned successfully.",
+  "Não foi possível atualizar o estado da refeição.":
+    "Could not update the meal status.",
+  "Totais previstos": "Planned totals",
+  "As minhas": "Mine",
+  Públicas: "Public",
+  "Duplicar receita": "Duplicate recipe",
+  "Receita duplicada com sucesso. A cópia é privada.":
+    "Recipe duplicated successfully. The copy is private.",
+  "Não foi possível duplicar a receita.": "Could not duplicate the recipe.",
+  "Tradução inglesa completa": "Complete English translation",
+  "Tradução inglesa em falta": "English translation missing",
+  "Experimenta alterar os filtros ou criar uma receita.":
+    "Try changing the filters or creating a recipe.",
+  "prot.": "prot.",
+  "hidr.": "carbs",
+  "gord.": "fat",
+  "Sobre as receitas": "About recipes",
+  "As macros apresentadas em todas as receitas são por porção.\nEm cada receita está indicado o número de porções que os ingredientes rendem, assim como o tempo médio de preparação (apenas para referência).\nOs ingredientes assinalados como opcionais não estão incluídos nas macros — estão apenas sugeridos para dar mais sabor ou para usares como alternativa a algum ingrediente.\nOs toppings estão incluídos nas macros, excepto quando indicados como opcionais.":
+    "The macros shown for every recipe are per serving.\nEach recipe shows the number of servings the ingredients make, as well as the average preparation time (for reference only).\nIngredients marked as optional are not included in the macros — they are suggested only for extra flavour or as an alternative to another ingredient.\nToppings are included in the macros unless they are marked as optional.",
+  Artigo: "Item",
+  "A tua despensa está vazia": "Your pantry is empty",
+  "Regista o que tens em casa para darmos prioridade a esses ingredientes nas sugestões.":
+    "Track what you have at home so we can prioritise those ingredients in suggestions.",
+  "Adiciona ingredientes para os usarmos nas sugestões de receitas.":
+    "Add ingredients so we can use them in recipe suggestions.",
+  "Atenção à validade": "Watch expiry dates",
+  "{{count}} artigo(s) terminam nos próximos 7 dias.":
+    "{{count}} item expires in the next 7 days",
+  "{{count}} artigo(s) terminam nos próximos 7 dias._plural":
+    "{{count}} items expire in the next 7 days",
+  Validade: "Expiry",
+  "Validade (opcional)": "Expiry date (optional)",
+  "Editar artigo": "Edit item",
+  Guardar: "Save",
+  "Preenche um nome e uma quantidade válida.":
+    "Enter a name and a valid quantity.",
+  "Não foi possível guardar o artigo na despensa.":
+    "Could not save the pantry item.",
+  "Não foi possível apagar o artigo.": "Could not delete the item.",
+  "Ex.: arroz, iogurte, tomate": "E.g. rice, yogurt, tomatoes",
+  "Na despensa": "In pantry",
+  "No carrinho": "In cart",
+  Stock: "Stock",
+  "O teu stock está vazio": "Your stock is empty",
+  "Em stock": "In stock",
+  "Usa ingredientes que tens em stock.": "Uses ingredients you have in stock.",
+  "Não foi possível guardar o artigo em stock.":
+    "Could not save the stock item.",
+  "Stock partilhado": "Shared stock",
+  "Partilha o teu stock com as pessoas que vivem contigo.":
+    "Share your stock with the people you live with.",
+  Agregado: "Household",
+  "Criar agregado": "Create household",
+  "Nome do agregado": "Household name",
+  "Aderir a um agregado": "Join a household",
+  "Código de convite": "Invite code",
+  Aderir: "Join",
+  "Copiar código": "Copy code",
+  "Partilha este código com quem deve ter acesso ao mesmo stock.":
+    "Share this code with anyone who should have access to the same stock.",
+  "Agregado criado. O stock atual passou a ser partilhado.":
+    "Household created. Your current stock is now shared.",
+  "Entraste no agregado. O stock atual passou a ser partilhado.":
+    "You joined the household. Your current stock is now shared.",
+  "Introduz o código de convite.": "Enter the invite code.",
+  "Não foi possível criar o agregado.": "Could not create the household.",
+  "Não foi possível aderir ao agregado.": "Could not join the household.",
+  "Código copiado.": "Code copied.",
+  "Não foi possível copiar o código.": "Could not copy the code.",
+  Lembretes: "Reminders",
+  "Escolhe se queres receber notificações para acompanhar o teu dia.":
+    "Choose whether you want to receive notifications to track your day.",
+  "Ativar notificações": "Enable notifications",
+  "Desativar lembretes": "Disable reminders",
+  "Lembretes desativados.": "Reminders disabled.",
+  Testar: "Test",
+  "Esta é uma notificação de teste.": "This is a test notification.",
+  "Notificação de teste enviada.": "Test notification sent.",
+  "Notificação push de teste enviada.": "Push test notification sent.",
+  "Não foi possível enviar a notificação. Verifica as permissões do navegador e do sistema.":
+    "Could not send the notification. Check browser and system permissions.",
+  "Não foi possível enviar a notificação push de teste.":
+    "Could not send the push test notification.",
+  "Não foi possível ativar as notificações push.":
+    "Could not enable push notifications.",
+  "Falta configurar as notificações push.":
+    "Push notifications still need to be configured.",
+  "Este navegador não suporta notificações push.":
+    "This browser does not support push notifications.",
+  "Notificações ativas": "Notifications enabled",
+  "Notificações ativadas com sucesso.": "Notifications enabled successfully.",
+  "Permite as notificações nas definições do navegador para receber lembretes.":
+    "Allow notifications in your browser settings to receive reminders.",
+  Refeições: "Meals",
+  "Lembra-te de registar uma refeição caso ainda não o tenhas feito.":
+    "Get a reminder if you have not logged a meal yet.",
+  "Recebe um lembrete se ainda não tiveres atingido o objetivo de água.":
+    "Get a reminder if you have not reached your water goal yet.",
+  "Repetir a cada": "Repeat every",
+  "Recebe um lembrete de hora a hora entre as 08:00 e as 22:00, até atingires o objetivo.":
+    "Get an hourly reminder between 08:00 and 22:00 until you reach your goal.",
+  "Recebe um lembrete semanal ao domingo para registar o peso.":
+    "Get a weekly reminder on Sunday to log your weight.",
+  "Validade do stock": "Stock expiry",
+  "Recebe um lembrete diário às 09:00 quando existirem produtos a terminar nos próximos 7 dias.":
+    "Get a daily reminder at 09:00 when products are due to expire in the next 7 days.",
 } as const;
 
-const savedLanguage = localStorage.getItem('meal-tracker-language');
-const initialLanguage = savedLanguage === 'en' || savedLanguage === 'pt' ? savedLanguage : (navigator.language.startsWith('pt') ? 'pt' : 'en');
+const savedLanguage = localStorage.getItem("meal-tracker-language");
+const initialLanguage =
+  savedLanguage === "en" || savedLanguage === "pt"
+    ? savedLanguage
+    : navigator.language.startsWith("pt")
+      ? "pt"
+      : "en";
 
 i18n.use(initReactI18next).init({
   resources: { pt: { translation: {} }, en: { translation: english } },
-  lng: initialLanguage, fallbackLng: 'pt', interpolation: { escapeValue: false },
+  lng: initialLanguage,
+  fallbackLng: "pt",
+  interpolation: { escapeValue: false },
   returnNull: false,
 });
 document.documentElement.lang = initialLanguage;
-i18n.on('languageChanged', (language) => { document.documentElement.lang = language; });
+i18n.on("languageChanged", (language) => {
+  document.documentElement.lang = language;
+});
 
-export async function changeLanguage(language: 'pt' | 'en') {
-  localStorage.setItem('meal-tracker-language', language);
+export async function changeLanguage(language: "pt" | "en") {
+  localStorage.setItem("meal-tracker-language", language);
   await i18n.changeLanguage(language);
 }
 

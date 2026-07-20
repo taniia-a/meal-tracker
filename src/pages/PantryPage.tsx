@@ -6,7 +6,6 @@ import {
   Pencil,
   Plus,
   Trash2,
-  Users,
   X,
 } from "lucide-react";
 import { FormEvent, useState } from "react";
@@ -224,10 +223,7 @@ function HouseholdCard() {
   };
   return (
     <section className="card mt-7 p-5">
-      <div className="flex items-start gap-3">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-leaf-600/15 text-leaf-600">
-          <Users size={21} />
-        </div>
+      <div className="text-center">
         <div>
           <h2 className="font-bold">{t("Stock partilhado")}</h2>
           <p className="mt-1 text-sm text-stone-400">

@@ -433,7 +433,7 @@ BEGIN
   IF EXISTS (SELECT 1 FROM household_members WHERE user_id = current_user_id) THEN
     RAISE EXCEPTION 'Já pertences a um agregado';
   END IF;
-  SELECT * INTO household_row FROM households WHERE invite_code = upper(trim(p_invite_code));
+  SELECT * INTO household_row FROM households WHERE households.invite_code = upper(trim(p_invite_code));
   IF household_row.id IS NULL THEN RAISE EXCEPTION 'Código de convite inválido'; END IF;
   INSERT INTO household_members (household_id, user_id) VALUES (household_row.id, current_user_id);
   UPDATE pantry_items SET household_id = household_row.id WHERE user_id = current_user_id AND household_id IS NULL;

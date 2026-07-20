@@ -134,13 +134,13 @@ export default function AddMealModal({
         </div>
         <label className="mt-6 block text-sm font-semibold">
           {t("Dia da refeição")}
-          <span className="relative mt-2 block w-full">
+          <span className="meal-entry-date relative mt-2 block">
             <CalendarDays
               className="pointer-events-none absolute left-4 top-3.5 text-stone-400"
               size={18}
             />
             <input
-              className="input w-full !pl-12"
+              className="input !pl-12"
               type="date"
               required
               value={date}

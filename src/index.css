@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap");
 @import "tailwindcss";
 
 @theme {
@@ -9,12 +9,12 @@
   --color-leaf-500: #9b6ee8;
   --color-leaf-600: #8152d0;
   --color-leaf-700: #c5a6ff;
-  --font-display: 'Manrope', sans-serif;
+  --font-display: "Manrope", sans-serif;
   --shadow-card: 0 12px 35px rgba(23, 35, 29, 0.07);
 }
 
 :root {
-  font-family: 'DM Sans', sans-serif;
+  font-family: "DM Sans", sans-serif;
   color: #f3eef9;
   background: #0e0b13;
   color-scheme: dark;
@@ -22,14 +22,38 @@
   text-rendering: optimizeLegibility;
 }
 
-* { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; min-height: 100vh; }
-button, input, select { font: inherit; }
-h1, h2, h3, .font-display { font-family: 'Manrope', sans-serif; }
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+h1,
+h2,
+h3,
+.font-display {
+  font-family: "Manrope", sans-serif;
+}
 
 @keyframes toast-out {
-  0%, 80% { opacity: 1; transform: translateY(0); visibility: visible; }
-  100% { opacity: 0; transform: translateY(-0.5rem); visibility: hidden; }
+  0%,
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+    visibility: hidden;
+  }
 }
 
 .animate-toast-out {
@@ -60,7 +84,9 @@ h1, h2, h3, .font-display { font-family: 'Manrope', sans-serif; }
   color: #f3eef9;
   padding: 0.75rem 1rem;
   outline: none;
-  transition: border-color 150ms, box-shadow 150ms;
+  transition:
+    border-color 150ms,
+    box-shadow 150ms;
 }
 
 .input:focus {
@@ -86,6 +112,23 @@ input[type="date"].input.compact-date-input {
 input[type="date"].input.w-44 {
   inline-size: 12rem !important;
   width: 12rem !important;
+}
+
+/* Keep native date controls within the bounds of meal-entry forms on iOS. */
+.meal-entry-date {
+  inline-size: 100%;
+  width: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow: hidden;
+}
+
+input[type="date"].meal-entry-date.input,
+.meal-entry-date input[type="date"].input {
+  inline-size: 100% !important;
+  width: 100% !important;
+  min-inline-size: 0 !important;
+  max-inline-size: 100% !important;
 }
 
 /* Safari gives date fields an intrinsic width unless this inner value can shrink. */

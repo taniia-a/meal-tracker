@@ -909,7 +909,7 @@ function ManualMealModal({
         <label className="mt-5 block text-sm font-semibold">
           {t("Dia da refeição")}
           <input
-            className="input mt-2 w-full"
+            className="meal-entry-date input mt-2"
             type="date"
             value={entryDate}
             onChange={(event) => setEntryDate(event.target.value)}

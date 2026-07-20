@@ -26,9 +26,9 @@ export default function Layout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-cream">
       <ReminderScheduler />
       <header className="sticky top-0 z-30 border-b border-white/10 bg-cream/90 backdrop-blur-xl lg:hidden">
-        <div className="flex h-16 items-center justify-between px-5">
-          <div className="order-2"><Brand /></div>
-          <button onClick={() => setOpen(!open)} className="order-1 rounded-xl p-2 hover:bg-white/5" aria-label="Abrir menu">
+        <div className="relative flex h-16 items-center justify-center px-5">
+          <Brand reverse />
+          <button onClick={() => setOpen(!open)} className="absolute left-5 rounded-xl p-2 hover:bg-white/5" aria-label="Abrir menu">
             {open ? <X /> : <Menu />}
           </button>
         </div>
@@ -62,10 +62,10 @@ export default function Layout({ children }: { children: ReactNode }) {
   );
 }
 
-function Brand() {
+function Brand({ reverse = false }: { reverse?: boolean }) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center gap-3">
+    <div className={`flex items-center gap-3 ${reverse ? 'flex-row-reverse' : ''}`}>
       <div className="grid h-11 w-11 place-items-center rounded-2xl bg-leaf-600 text-white"><ChefHat size={24} /></div>
       <div><p className="font-display text-lg font-extrabold leading-tight">Meal Tracker</p><p className="text-xs text-stone-400">{t('Nutrição sem complicações')}</p></div>
     </div>

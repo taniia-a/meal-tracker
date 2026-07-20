@@ -22,6 +22,7 @@ import {
   RecipeTaste,
   PantryItem,
   PantryItemInput,
+  Household,
   WaterEntry,
 } from "../types";
 import { calculateNutrition } from "../lib/nutrition";
@@ -40,6 +41,7 @@ interface MealContextValue {
   waterEntryDay: string;
   waterEntries: WaterEntry[];
   pantryItems: PantryItem[];
+  household: Household | null;
   updateProfile: (
     profile: NutritionProfileInput,
     goals: NutritionGoals,
@@ -52,10 +54,16 @@ interface MealContextValue {
   removeWater: (entryId: string) => Promise<void>;
   savePantryItem: (item: PantryItemInput, itemId?: string) => Promise<void>;
   removePantryItem: (itemId: string) => Promise<void>;
+  createHousehold: (name: string) => Promise<void>;
+  joinHousehold: (inviteCode: string) => Promise<void>;
   saveRecipe: (recipe: RecipeInput, recipeId?: string) => Promise<void>;
   deleteRecipe: (recipeId: string) => Promise<void>;
   toggleFavorite: (recipeId: string) => Promise<void>;
-  saveRecipeReview: (recipeId: string, rating: number, comment: string) => Promise<void>;
+  saveRecipeReview: (
+    recipeId: string,
+    rating: number,
+    comment: string,
+  ) => Promise<void>;
   deleteRecipeReview: (reviewId: string) => Promise<void>;
   addMeal: (
     recipe: Recipe,
@@ -72,9 +80,17 @@ interface MealContextValue {
     portions: number,
     date: string,
   ) => Promise<void>;
-  moveMeal: (entryId: string, date: string, mealType: MealType) => Promise<void>;
+  moveMeal: (
+    entryId: string,
+    date: string,
+    mealType: MealType,
+  ) => Promise<void>;
   setMealConsumed: (entryId: string, isConsumed: boolean) => Promise<MealEntry>;
-  replaceMeal: (entryId: string, recipe: Recipe, portions: number) => Promise<void>;
+  replaceMeal: (
+    entryId: string,
+    recipe: Recipe,
+    portions: number,
+  ) => Promise<void>;
   removeMeal: (id: string) => Promise<void>;
 }
 
@@ -122,6 +138,7 @@ export function MealProvider({
   const [waterEntryDay, setWaterEntryDay] = useState(localToday());
   const [waterEntries, setWaterEntries] = useState<WaterEntry[]>([]);
   const [pantryItems, setPantryItems] = useState<PantryItem[]>([]);
+  const [household, setHousehold] = useState<Household | null>(null);
   const [profile, setProfile] = useState<NutritionProfile | null>(null);
   const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState("");
@@ -152,7 +169,8 @@ export function MealProvider({
         data = result.data;
         error = result.error;
         if (data && !error) break;
-        if (attempt < 2) await new Promise((resolve) => window.setTimeout(resolve, 700));
+        if (attempt < 2)
+          await new Promise((resolve) => window.setTimeout(resolve, 700));
       }
 
       if (!isActive) return;
@@ -181,7 +199,9 @@ export function MealProvider({
           onboardingCompleted: Boolean(data.onboarding_completed),
           goals: loadedGoals,
           waterGoalMl: Number(data.water_goal_ml || 2000),
-          dislikedIngredients: Array.isArray(data.disliked_ingredients) ? data.disliked_ingredients : [],
+          dislikedIngredients: Array.isArray(data.disliked_ingredients)
+            ? data.disliked_ingredients
+            : [],
         });
       }
 
@@ -196,14 +216,68 @@ export function MealProvider({
 
   useEffect(() => {
     if (!neonClient) return;
+    const client = neonClient;
     let active = true;
-    neonClient.from('pantry_items').select('id, name, quantity, unit, expires_on').eq('user_id', userId).order('expires_on', { ascending: true }).then(({ data, error }) => {
+    async function loadHousehold() {
+      const membership = await client
+        .from("household_members")
+        .select("household_id")
+        .eq("user_id", userId)
+        .maybeSingle();
       if (!active) return;
-      if (error) { setProfileError(error.message); return; }
-      setPantryItems((data ?? []).map(mapPantryItem));
-    });
-    return () => { active = false; };
+      if (membership.error || !membership.data) {
+        setHousehold(null);
+        return;
+      }
+      const result = await client
+        .from("households")
+        .select("id, name, invite_code")
+        .eq("id", membership.data.household_id)
+        .maybeSingle();
+      if (!active) return;
+      if (result.error || !result.data) {
+        setHousehold(null);
+        return;
+      }
+      setHousehold({
+        id: result.data.id,
+        name: result.data.name,
+        inviteCode: result.data.invite_code,
+      });
+    }
+    void loadHousehold();
+    return () => {
+      active = false;
+    };
   }, [userId]);
+
+  useEffect(() => {
+    if (!neonClient) return;
+    const client = neonClient;
+    let active = true;
+    async function loadPantry() {
+      const query = client
+        .from("pantry_items")
+        .select("id, name, quantity, unit, expires_on")
+        .order("expires_on", { ascending: true });
+      const scopedQuery = household
+        ? query.eq("household_id", household.id)
+        : query.eq("user_id", userId).is("household_id", null);
+      const { data, error } = await scopedQuery;
+      if (!active) return;
+      if (error) {
+        setProfileError(error.message);
+        return;
+      }
+      setPantryItems((data ?? []).map(mapPantryItem));
+    }
+    void loadPantry();
+    const refreshInterval = window.setInterval(() => void loadPantry(), 20_000);
+    return () => {
+      active = false;
+      window.clearInterval(refreshInterval);
+    };
+  }, [userId, household?.id]);
 
   useEffect(() => {
     let isActive = true;
@@ -222,7 +296,11 @@ export function MealProvider({
       const loadedEntries = (data ?? []).map((entry) => mapWaterEntry(entry));
       const entryDay = localToday();
       setWaterEntries(loadedEntries);
-      setWaterConsumedMl(loadedEntries.filter((entry) => entry.date === entryDay).reduce((sum, entry) => sum + entry.amountMl, 0));
+      setWaterConsumedMl(
+        loadedEntries
+          .filter((entry) => entry.date === entryDay)
+          .reduce((sum, entry) => sum + entry.amountMl, 0),
+      );
       setWaterEntryDay(entryDay);
     }
 
@@ -279,7 +357,9 @@ export function MealProvider({
       }
       const reviewsResult = await neonClient
         .from("recipe_reviews")
-        .select("id, user_id, recipe_id, rating, comment, created_at, updated_at")
+        .select(
+          "id, user_id, recipe_id, rating, comment, created_at, updated_at",
+        )
         .order("created_at", { ascending: false });
       if (!isActive) return;
       if (reviewsResult.error) {
@@ -294,15 +374,15 @@ export function MealProvider({
       const loadedRecipes = (recipeRows ?? []).map((row) =>
         mapRecipe(
           row,
-          ingredientRows.filter(
-            (item) => item.recipe_id === row.id,
-          ),
+          ingredientRows.filter((item) => item.recipe_id === row.id),
         ),
       );
       setRecipes(loadedRecipes);
       const entryResult = await neonClient
         .from("meal_entries")
-        .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat")
+        .select(
+          "id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat",
+        )
         .order("created_at", { ascending: true });
       if (!isActive) return;
       if (entryResult.error) {
@@ -310,11 +390,16 @@ export function MealProvider({
         setIsRecipesLoading(false);
         return;
       }
-      setEntries((entryResult.data ?? []).flatMap((row) => {
-        if (!row.recipe_id) return row.manual_name ? [mapManualMealEntry(row)] : [];
-        const recipe = loadedRecipes.find((item) => item.id === row.recipe_id);
-        return recipe ? [mapMealEntry(row, recipe)] : [];
-      }));
+      setEntries(
+        (entryResult.data ?? []).flatMap((row) => {
+          if (!row.recipe_id)
+            return row.manual_name ? [mapManualMealEntry(row)] : [];
+          const recipe = loadedRecipes.find(
+            (item) => item.id === row.recipe_id,
+          );
+          return recipe ? [mapMealEntry(row, recipe)] : [];
+        }),
+      );
       setIsRecipesLoading(false);
     }
     loadRecipes();
@@ -399,7 +484,9 @@ export function MealProvider({
       onboardingCompleted: Boolean(data.onboarding_completed),
       goals: savedGoals,
       waterGoalMl: Number(data.water_goal_ml || 2000),
-      dislikedIngredients: Array.isArray(data.disliked_ingredients) ? data.disliked_ingredients : profile?.dislikedIngredients ?? [],
+      dislikedIngredients: Array.isArray(data.disliked_ingredients)
+        ? data.disliked_ingredients
+        : (profile?.dislikedIngredients ?? []),
     });
   };
 
@@ -407,12 +494,22 @@ export function MealProvider({
     if (!neonClient) throw new Error("O cliente Neon não está configurado.");
     const { data, error } = await neonClient
       .from("profiles")
-      .update({ water_goal_ml: waterGoalMl, updated_at: new Date().toISOString() })
+      .update({
+        water_goal_ml: waterGoalMl,
+        updated_at: new Date().toISOString(),
+      })
       .eq("user_id", userId)
       .select("water_goal_ml")
       .single();
-    if (error || !data) throw new Error(error?.message || "Não foi possível guardar o objetivo de água.");
-    setProfile((current) => current ? { ...current, waterGoalMl: Number(data.water_goal_ml) } : current);
+    if (error || !data)
+      throw new Error(
+        error?.message || "Não foi possível guardar o objetivo de água.",
+      );
+    setProfile((current) =>
+      current
+        ? { ...current, waterGoalMl: Number(data.water_goal_ml) }
+        : current,
+    );
   };
 
   const updateDislikedIngredients = async (ingredients: string[]) => {
@@ -425,28 +522,55 @@ export function MealProvider({
     const cleaned = [...uniqueIngredients.values()];
     const { data, error } = await neonClient
       .from("profiles")
-      .update({ disliked_ingredients: cleaned, updated_at: new Date().toISOString() })
+      .update({
+        disliked_ingredients: cleaned,
+        updated_at: new Date().toISOString(),
+      })
       .eq("user_id", userId)
       .select("disliked_ingredients")
       .single();
-    if (error || !data) throw new Error(error?.message || "Não foi possível guardar os ingredientes a evitar.");
-    setProfile((current) => current ? { ...current, dislikedIngredients: Array.isArray(data.disliked_ingredients) ? data.disliked_ingredients : [] } : current);
+    if (error || !data)
+      throw new Error(
+        error?.message || "Não foi possível guardar os ingredientes a evitar.",
+      );
+    setProfile((current) =>
+      current
+        ? {
+            ...current,
+            dislikedIngredients: Array.isArray(data.disliked_ingredients)
+              ? data.disliked_ingredients
+              : [],
+          }
+        : current,
+    );
   };
 
-  const adjustWater = async (amountMl: number, requestedDate = localToday()) => {
+  const adjustWater = async (
+    amountMl: number,
+    requestedDate = localToday(),
+  ) => {
     if (!neonClient) throw new Error("O cliente Neon não está configurado.");
     const entryDay = requestedDate;
-    if (!Number.isFinite(amountMl) || amountMl <= 0) throw new Error("Introduz uma quantidade de água válida.");
+    if (!Number.isFinite(amountMl) || amountMl <= 0)
+      throw new Error("Introduz uma quantidade de água válida.");
     const { data, error } = await neonClient
       .from("water_entries")
-      .insert({ user_id: userId, entry_date: entryDay, amount_ml: amountMl, updated_at: new Date().toISOString() })
+      .insert({
+        user_id: userId,
+        entry_date: entryDay,
+        amount_ml: amountMl,
+        updated_at: new Date().toISOString(),
+      })
       .select("id, entry_date, amount_ml, created_at")
       .single();
-    if (error || !data) throw new Error(error?.message || "Não foi possível atualizar a água.");
+    if (error || !data)
+      throw new Error(error?.message || "Não foi possível atualizar a água.");
     const entry = mapWaterEntry(data);
     setWaterEntries((current) => [entry, ...current]);
     if (entryDay === localToday()) {
-      setWaterConsumedMl((current) => (waterEntryDay === entryDay ? current + entry.amountMl : entry.amountMl));
+      setWaterConsumedMl((current) =>
+        waterEntryDay === entryDay ? current + entry.amountMl : entry.amountMl,
+      );
       setWaterEntryDay(entryDay);
     }
   };
@@ -454,10 +578,14 @@ export function MealProvider({
   const removeWater = async (entryId: string) => {
     if (!neonClient) throw new Error("O cliente Neon não está configurado.");
     const entry = waterEntries.find((item) => item.id === entryId);
-    const { error } = await neonClient.from("water_entries").delete().eq("id", entryId);
+    const { error } = await neonClient
+      .from("water_entries")
+      .delete()
+      .eq("id", entryId);
     if (error) throw new Error(error.message);
     setWaterEntries((current) => current.filter((item) => item.id !== entryId));
-    if (entry?.date === localToday()) setWaterConsumedMl((current) => Math.max(0, current - entry.amountMl));
+    if (entry?.date === localToday())
+      setWaterConsumedMl((current) => Math.max(0, current - entry.amountMl));
   };
 
   const syncProgressWeight = async (weightKg: number) => {
@@ -498,7 +626,12 @@ export function MealProvider({
   const saveRecipe = async (input: RecipeInput, recipeId?: string) => {
     if (!neonClient) throw new Error("O cliente Neon não está configurado.");
     const name = normaliseRecipeName(input.name);
-    if (recipes.some((recipe) => recipe.id !== recipeId && normaliseRecipeName(recipe.name) === name)) {
+    if (
+      recipes.some(
+        (recipe) =>
+          recipe.id !== recipeId && normaliseRecipeName(recipe.name) === name,
+      )
+    ) {
       throw new Error(t("Já existe uma receita com este nome."));
     }
     const values = {
@@ -610,41 +743,123 @@ export function MealProvider({
     }
   };
 
-  const saveRecipeReview = async (recipeId: string, rating: number, comment: string) => {
+  const saveRecipeReview = async (
+    recipeId: string,
+    rating: number,
+    comment: string,
+  ) => {
     if (!neonClient) throw new Error("O cliente Neon não está configurado.");
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new Error("Escolhe uma avaliação entre 1 e 5 estrelas.");
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5)
+      throw new Error("Escolhe uma avaliação entre 1 e 5 estrelas.");
     const { data, error } = await neonClient
       .from("recipe_reviews")
-      .upsert({ user_id: userId, recipe_id: recipeId, rating, comment: comment.trim() || null, updated_at: new Date().toISOString() }, { onConflict: "user_id,recipe_id" })
+      .upsert(
+        {
+          user_id: userId,
+          recipe_id: recipeId,
+          rating,
+          comment: comment.trim() || null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,recipe_id" },
+      )
       .select("id, user_id, recipe_id, rating, comment, created_at, updated_at")
       .single();
-    if (error || !data) throw new Error(error?.message || "Não foi possível guardar a avaliação.");
+    if (error || !data)
+      throw new Error(
+        error?.message || "Não foi possível guardar a avaliação.",
+      );
     const review = mapRecipeReview(data);
-    setRecipeReviews((current) => [...current.filter((item) => item.id !== review.id && !(item.userId === userId && item.recipeId === recipeId)), review]);
+    setRecipeReviews((current) => [
+      ...current.filter(
+        (item) =>
+          item.id !== review.id &&
+          !(item.userId === userId && item.recipeId === recipeId),
+      ),
+      review,
+    ]);
   };
 
   const deleteRecipeReview = async (reviewId: string) => {
     if (!neonClient) throw new Error("O cliente Neon não está configurado.");
-    const { error } = await neonClient.from("recipe_reviews").delete().eq("id", reviewId);
+    const { error } = await neonClient
+      .from("recipe_reviews")
+      .delete()
+      .eq("id", reviewId);
     if (error) throw new Error(error.message);
-    setRecipeReviews((current) => current.filter((review) => review.id !== reviewId));
+    setRecipeReviews((current) =>
+      current.filter((review) => review.id !== reviewId),
+    );
   };
 
   const savePantryItem = async (item: PantryItemInput, itemId?: string) => {
-    if (!neonClient) throw new Error('O cliente Neon não está configurado.');
-    const payload = { user_id: userId, name: item.name.trim(), quantity: item.quantity, unit: item.unit, expires_on: item.expiresOn };
-    const query = itemId ? neonClient.from('pantry_items').update(payload).eq('id', itemId) : neonClient.from('pantry_items').insert(payload);
-    const { data, error } = await query.select('id, name, quantity, unit, expires_on').single();
-    if (error || !data) throw new Error(error?.message || 'Não foi possível guardar o artigo em stock.');
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const payload = {
+      user_id: userId,
+      household_id: household?.id ?? null,
+      name: item.name.trim(),
+      quantity: item.quantity,
+      unit: item.unit,
+      expires_on: item.expiresOn,
+    };
+    const query = itemId
+      ? neonClient.from("pantry_items").update(payload).eq("id", itemId)
+      : neonClient.from("pantry_items").insert(payload);
+    const { data, error } = await query
+      .select("id, name, quantity, unit, expires_on")
+      .single();
+    if (error || !data)
+      throw new Error(
+        error?.message || "Não foi possível guardar o artigo em stock.",
+      );
     const saved = mapPantryItem(data);
-    setPantryItems((current) => itemId ? current.map((value) => value.id === itemId ? saved : value) : [...current, saved].sort((a, b) => (a.expiresOn ?? '9999').localeCompare(b.expiresOn ?? '9999')));
+    setPantryItems((current) =>
+      itemId
+        ? current.map((value) => (value.id === itemId ? saved : value))
+        : [...current, saved].sort((a, b) =>
+            (a.expiresOn ?? "9999").localeCompare(b.expiresOn ?? "9999"),
+          ),
+    );
   };
 
   const removePantryItem = async (itemId: string) => {
-    if (!neonClient) throw new Error('O cliente Neon não está configurado.');
-    const { error } = await neonClient.from('pantry_items').delete().eq('id', itemId);
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const { error } = await neonClient
+      .from("pantry_items")
+      .delete()
+      .eq("id", itemId);
     if (error) throw new Error(error.message);
     setPantryItems((current) => current.filter((item) => item.id !== itemId));
+  };
+
+  const saveHousehold = (row: {
+    id: string;
+    name: string;
+    invite_code: string;
+  }) => {
+    setHousehold({ id: row.id, name: row.name, inviteCode: row.invite_code });
+  };
+
+  const createHousehold = async (name: string) => {
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const { data, error } = await neonClient.rpc("create_household", {
+      p_name: name.trim(),
+    });
+    const row = Array.isArray(data) ? data[0] : data;
+    if (error || !row)
+      throw new Error(error?.message || "Não foi possível criar o agregado.");
+    saveHousehold(row);
+  };
+
+  const joinHousehold = async (inviteCode: string) => {
+    if (!neonClient) throw new Error("O cliente Neon não está configurado.");
+    const { data, error } = await neonClient.rpc("join_household", {
+      p_invite_code: inviteCode.trim(),
+    });
+    const row = Array.isArray(data) ? data[0] : data;
+    if (error || !row)
+      throw new Error(error?.message || "Não foi possível aderir ao agregado.");
+    saveHousehold(row);
   };
 
   const addMeal = async (
@@ -670,7 +885,9 @@ export function MealProvider({
         recipe_carbs_snapshot: recipe.carbs,
         recipe_fat_snapshot: recipe.fat,
       })
-      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot")
+      .select(
+        "id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot",
+      )
       .single();
     if (error || !data)
       throw new Error(
@@ -698,9 +915,14 @@ export function MealProvider({
         manual_carbs: meal.carbs,
         manual_fat: meal.fat,
       })
-      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat")
+      .select(
+        "id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat",
+      )
       .single();
-    if (error || !data) throw new Error(error?.message || "Não foi possível registar a refeição.");
+    if (error || !data)
+      throw new Error(
+        error?.message || "Não foi possível registar a refeição.",
+      );
     setEntries((current) => [...current, mapManualMealEntry(data)]);
   };
 
@@ -719,11 +941,18 @@ export function MealProvider({
         manual_fat: meal.fat,
       })
       .eq("id", entryId)
-      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat")
+      .select(
+        "id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat",
+      )
       .single();
-    if (error || !data) throw new Error(error?.message || "Não foi possível guardar as alterações.");
+    if (error || !data)
+      throw new Error(
+        error?.message || "Não foi possível guardar as alterações.",
+      );
     const updated = mapManualMealEntry(data);
-    setEntries((current) => current.map((entry) => entry.id === entryId ? updated : entry));
+    setEntries((current) =>
+      current.map((entry) => (entry.id === entryId ? updated : entry)),
+    );
   };
 
   const updateMeal = async (
@@ -744,7 +973,9 @@ export function MealProvider({
         is_consumed: currentEntry?.isConsumed ?? false,
       })
       .eq("id", entryId)
-      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot")
+      .select(
+        "id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot",
+      )
       .single();
     if (error || !data)
       throw new Error(
@@ -756,14 +987,22 @@ export function MealProvider({
     );
   };
 
-  const moveMeal = async (entryId: string, date: string, mealType: MealType) => {
+  const moveMeal = async (
+    entryId: string,
+    date: string,
+    mealType: MealType,
+  ) => {
     if (!neonClient) throw new Error("O cliente Neon não está configurado.");
     const { error } = await neonClient
       .from("meal_entries")
       .update({ meal_date: date, meal_type: mealType })
       .eq("id", entryId);
     if (error) throw new Error(error.message);
-    setEntries((current) => current.map((entry) => entry.id === entryId ? { ...entry, date, mealType } : entry));
+    setEntries((current) =>
+      current.map((entry) =>
+        entry.id === entryId ? { ...entry, date, mealType } : entry,
+      ),
+    );
   };
 
   const setMealConsumed = async (entryId: string, isConsumed: boolean) => {
@@ -772,31 +1011,63 @@ export function MealProvider({
       .from("meal_entries")
       .update({ is_consumed: isConsumed })
       .eq("id", entryId)
-      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat")
+      .select(
+        "id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot, manual_name, manual_calories, manual_protein, manual_carbs, manual_fat",
+      )
       .single();
-    if (error || !data) throw new Error(error?.message || "Não foi possível atualizar o estado da refeição.");
+    if (error || !data)
+      throw new Error(
+        error?.message || "Não foi possível atualizar o estado da refeição.",
+      );
     const existing = entries.find((entry) => entry.id === entryId);
     if (!existing) throw new Error("Não foi possível encontrar a refeição.");
-    const updated = existing.isManual ? mapManualMealEntry(data) : (() => {
-      const recipe = recipes.find((item) => item.id === data.recipe_id);
-      return recipe ? mapMealEntry(data, recipe) : { ...existing, isConsumed };
-    })();
-    setEntries((current) => current.map((entry) => entry.id === entryId ? updated : entry));
+    const updated = existing.isManual
+      ? mapManualMealEntry(data)
+      : (() => {
+          const recipe = recipes.find((item) => item.id === data.recipe_id);
+          return recipe
+            ? mapMealEntry(data, recipe)
+            : { ...existing, isConsumed };
+        })();
+    setEntries((current) =>
+      current.map((entry) => (entry.id === entryId ? updated : entry)),
+    );
     return updated;
   };
 
-  const replaceMeal = async (entryId: string, recipe: Recipe, portions: number) => {
+  const replaceMeal = async (
+    entryId: string,
+    recipe: Recipe,
+    portions: number,
+  ) => {
     if (!neonClient) throw new Error("O cliente Neon não está configurado.");
     const entry = entries.find((item) => item.id === entryId);
-    if (!entry) throw new Error("Não foi possível encontrar a refeição planeada.");
+    if (!entry)
+      throw new Error("Não foi possível encontrar a refeição planeada.");
     const { data, error } = await neonClient
       .from("meal_entries")
-      .update({ recipe_id: recipe.id, portions, recipe_name_snapshot: recipe.name, recipe_name_en_snapshot: recipe.nameEn, recipe_calories_snapshot: recipe.calories, recipe_protein_snapshot: recipe.protein, recipe_carbs_snapshot: recipe.carbs, recipe_fat_snapshot: recipe.fat })
+      .update({
+        recipe_id: recipe.id,
+        portions,
+        recipe_name_snapshot: recipe.name,
+        recipe_name_en_snapshot: recipe.nameEn,
+        recipe_calories_snapshot: recipe.calories,
+        recipe_protein_snapshot: recipe.protein,
+        recipe_carbs_snapshot: recipe.carbs,
+        recipe_fat_snapshot: recipe.fat,
+      })
       .eq("id", entryId)
-      .select("id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot")
+      .select(
+        "id, recipe_id, meal_date, meal_type, portions, is_consumed, recipe_name_snapshot, recipe_name_en_snapshot, recipe_calories_snapshot, recipe_protein_snapshot, recipe_carbs_snapshot, recipe_fat_snapshot",
+      )
       .single();
-    if (error || !data) throw new Error(error?.message || "Não foi possível trocar a receita.");
-    setEntries((current) => current.map((item) => item.id === entryId ? mapMealEntry(data, recipe) : item));
+    if (error || !data)
+      throw new Error(error?.message || "Não foi possível trocar a receita.");
+    setEntries((current) =>
+      current.map((item) =>
+        item.id === entryId ? mapMealEntry(data, recipe) : item,
+      ),
+    );
   };
 
   const removeMeal = async (id: string) => {
@@ -858,6 +1129,7 @@ export function MealProvider({
         waterEntryDay,
         waterEntries,
         pantryItems,
+        household,
         updateProfile,
         syncProgressWeight,
         updateWaterGoal,
@@ -866,6 +1138,8 @@ export function MealProvider({
         removeWater,
         savePantryItem,
         removePantryItem,
+        createHousehold,
+        joinHousehold,
         saveRecipe,
         deleteRecipe,
         toggleFavorite,
@@ -973,7 +1247,13 @@ interface WaterEntryRow {
   created_at: string;
 }
 
-interface PantryItemRow { id: string; name: string; quantity: number | string; unit: string; expires_on: string | null; }
+interface PantryItemRow {
+  id: string;
+  name: string;
+  quantity: number | string;
+  unit: string;
+  expires_on: string | null;
+}
 
 interface RecipeReviewRow {
   id: string;
@@ -986,21 +1266,51 @@ interface RecipeReviewRow {
 }
 
 function mapRecipeReview(row: RecipeReviewRow): RecipeReview {
-  return { id: row.id, userId: row.user_id, recipeId: row.recipe_id, rating: Number(row.rating), comment: row.comment ?? "", createdAt: row.created_at, updatedAt: row.updated_at };
+  return {
+    id: row.id,
+    userId: row.user_id,
+    recipeId: row.recipe_id,
+    rating: Number(row.rating),
+    comment: row.comment ?? "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 function mapWaterEntry(row: WaterEntryRow): WaterEntry {
-  return { id: row.id, date: row.entry_date, amountMl: Number(row.amount_ml), createdAt: row.created_at };
+  return {
+    id: row.id,
+    date: row.entry_date,
+    amountMl: Number(row.amount_ml),
+    createdAt: row.created_at,
+  };
 }
 
 function mapPantryItem(row: PantryItemRow): PantryItem {
-  return { id: row.id, name: row.name, quantity: Number(row.quantity), unit: row.unit, expiresOn: row.expires_on };
+  return {
+    id: row.id,
+    name: row.name,
+    quantity: Number(row.quantity),
+    unit: row.unit,
+    expiresOn: row.expires_on,
+  };
 }
 
 function mapMealEntry(row: MealEntryRow, recipe: Recipe): MealEntry {
   const portions = Number(row.portions);
-  const snapshot = row.recipe_calories_snapshot != null && row.recipe_protein_snapshot != null && row.recipe_carbs_snapshot != null && row.recipe_fat_snapshot != null;
-  const nutrition = snapshot ? { calories: Number(row.recipe_calories_snapshot), protein: Number(row.recipe_protein_snapshot), carbs: Number(row.recipe_carbs_snapshot), fat: Number(row.recipe_fat_snapshot) } : recipe;
+  const snapshot =
+    row.recipe_calories_snapshot != null &&
+    row.recipe_protein_snapshot != null &&
+    row.recipe_carbs_snapshot != null &&
+    row.recipe_fat_snapshot != null;
+  const nutrition = snapshot
+    ? {
+        calories: Number(row.recipe_calories_snapshot),
+        protein: Number(row.recipe_protein_snapshot),
+        carbs: Number(row.recipe_carbs_snapshot),
+        fat: Number(row.recipe_fat_snapshot),
+      }
+    : recipe;
   const scale = (value: number) => Math.round(value * portions * 10) / 10;
   return {
     id: row.id,

@@ -101,6 +101,12 @@ export interface PantryItemInput {
   expiresOn: string | null;
 }
 
+export interface Household {
+  id: string;
+  name: string;
+  inviteCode: string;
+}
+
 export type NutritionGoals = Macros;
 
 export type MetabolicSex = "female" | "male";

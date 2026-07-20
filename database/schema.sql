@@ -137,9 +137,27 @@ CREATE TABLE IF NOT EXISTS daily_fact_views (
   PRIMARY KEY (user_id, fact_id)
 );
 
+-- Um agregado permite que vários utilizadores partilhem o mesmo stock.
+CREATE TABLE IF NOT EXISTS households (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  invite_code TEXT NOT NULL UNIQUE,
+  created_by TEXT NOT NULL DEFAULT (auth.user_id()),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS household_members (
+  household_id UUID NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL DEFAULT (auth.user_id()),
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (household_id, user_id),
+  UNIQUE (user_id)
+);
+
 CREATE TABLE IF NOT EXISTS pantry_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id TEXT NOT NULL DEFAULT (auth.user_id()),
+  household_id UUID REFERENCES households(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   quantity NUMERIC(9,2) NOT NULL CHECK (quantity > 0),
   unit TEXT NOT NULL,
@@ -238,6 +256,8 @@ ALTER TABLE recipe_favorites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recipe_reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_fact_views ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pantry_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE households ENABLE ROW LEVEL SECURITY;
+ALTER TABLE household_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shopping_lists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE push_notification_log ENABLE ROW LEVEL SECURITY;
@@ -258,6 +278,9 @@ DROP POLICY IF EXISTS recipe_reviews_authenticated_read ON recipe_reviews;
 DROP POLICY IF EXISTS recipe_reviews_own_rows ON recipe_reviews;
 DROP POLICY IF EXISTS daily_fact_views_own_rows ON daily_fact_views;
 DROP POLICY IF EXISTS pantry_items_own_rows ON pantry_items;
+DROP POLICY IF EXISTS households_member_read ON households;
+DROP POLICY IF EXISTS household_members_own_rows ON household_members;
+DROP POLICY IF EXISTS pantry_items_member_rows ON pantry_items;
 DROP POLICY IF EXISTS shopping_lists_own_rows ON shopping_lists;
 DROP POLICY IF EXISTS push_subscriptions_own_rows ON push_subscriptions;
 DROP POLICY IF EXISTS push_notification_log_own_rows ON push_notification_log;
@@ -326,10 +349,24 @@ CREATE POLICY daily_fact_views_own_rows ON daily_fact_views
   USING ((SELECT auth.user_id()) = user_id)
   WITH CHECK ((SELECT auth.user_id()) = user_id);
 
-CREATE POLICY pantry_items_own_rows ON pantry_items
+CREATE POLICY households_member_read ON households
+  FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM household_members WHERE household_members.household_id = households.id AND household_members.user_id = (SELECT auth.user_id())));
+
+CREATE POLICY household_members_own_rows ON household_members
+  FOR SELECT TO authenticated
+  USING ((SELECT auth.user_id()) = user_id);
+
+CREATE POLICY pantry_items_member_rows ON pantry_items
   FOR ALL TO authenticated
-  USING ((SELECT auth.user_id()) = user_id)
-  WITH CHECK ((SELECT auth.user_id()) = user_id);
+  USING (
+    (household_id IS NULL AND (SELECT auth.user_id()) = user_id)
+    OR household_id IN (SELECT household_id FROM household_members WHERE user_id = (SELECT auth.user_id()))
+  )
+  WITH CHECK (
+    (household_id IS NULL AND (SELECT auth.user_id()) = user_id)
+    OR household_id IN (SELECT household_id FROM household_members WHERE user_id = (SELECT auth.user_id()))
+  );
 
 CREATE POLICY shopping_lists_own_rows ON shopping_lists
   FOR ALL TO authenticated
@@ -357,6 +394,54 @@ GRANT SELECT, INSERT, DELETE ON recipe_favorites TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON recipe_reviews TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON daily_fact_views TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON pantry_items TO authenticated;
+GRANT SELECT ON households, household_members TO authenticated;
+
+CREATE OR REPLACE FUNCTION create_household(p_name TEXT)
+RETURNS TABLE(id UUID, name TEXT, invite_code TEXT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  household_row households;
+  current_user_id TEXT := auth.user_id();
+BEGIN
+  IF current_user_id IS NULL THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  IF EXISTS (SELECT 1 FROM household_members WHERE user_id = current_user_id) THEN
+    RAISE EXCEPTION 'Já pertences a um agregado';
+  END IF;
+  INSERT INTO households (name, invite_code, created_by)
+  VALUES (COALESCE(NULLIF(trim(p_name), ''), 'O meu agregado'), upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)), current_user_id)
+  RETURNING * INTO household_row;
+  INSERT INTO household_members (household_id, user_id) VALUES (household_row.id, current_user_id);
+  UPDATE pantry_items SET household_id = household_row.id WHERE user_id = current_user_id AND household_id IS NULL;
+  RETURN QUERY SELECT household_row.id, household_row.name, household_row.invite_code;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION join_household(p_invite_code TEXT)
+RETURNS TABLE(id UUID, name TEXT, invite_code TEXT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  household_row households;
+  current_user_id TEXT := auth.user_id();
+BEGIN
+  IF current_user_id IS NULL THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  IF EXISTS (SELECT 1 FROM household_members WHERE user_id = current_user_id) THEN
+    RAISE EXCEPTION 'Já pertences a um agregado';
+  END IF;
+  SELECT * INTO household_row FROM households WHERE invite_code = upper(trim(p_invite_code));
+  IF household_row.id IS NULL THEN RAISE EXCEPTION 'Código de convite inválido'; END IF;
+  INSERT INTO household_members (household_id, user_id) VALUES (household_row.id, current_user_id);
+  UPDATE pantry_items SET household_id = household_row.id WHERE user_id = current_user_id AND household_id IS NULL;
+  RETURN QUERY SELECT household_row.id, household_row.name, household_row.invite_code;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION create_household(TEXT), join_household(TEXT) TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON shopping_lists TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON push_subscriptions TO authenticated;
 GRANT SELECT ON push_notification_log TO authenticated;

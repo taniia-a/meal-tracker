@@ -77,6 +77,17 @@ input[type="date"].input {
   max-inline-size: 100%;
 }
 
+/* Compact date controls used inside the meal registration forms. */
+input[type="date"].input.compact-date-input {
+  inline-size: 12rem !important;
+  width: 12rem !important;
+}
+
+input[type="date"].input.w-44 {
+  inline-size: 12rem !important;
+  width: 12rem !important;
+}
+
 /* Safari gives date fields an intrinsic width unless this inner value can shrink. */
 input[type="date"].input::-webkit-date-and-time-value {
   min-width: 0;

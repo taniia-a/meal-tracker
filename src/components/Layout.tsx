@@ -27,8 +27,8 @@ export default function Layout({ children }: { children: ReactNode }) {
       <ReminderScheduler />
       <header className="sticky top-0 z-30 border-b border-white/10 bg-cream/90 backdrop-blur-xl lg:hidden">
         <div className="flex h-16 items-center justify-between px-5">
-          <Brand />
-          <button onClick={() => setOpen(!open)} className="rounded-xl p-2 hover:bg-white/5" aria-label="Abrir menu">
+          <div className="order-2"><Brand /></div>
+          <button onClick={() => setOpen(!open)} className="order-1 rounded-xl p-2 hover:bg-white/5" aria-label="Abrir menu">
             {open ? <X /> : <Menu />}
           </button>
         </div>

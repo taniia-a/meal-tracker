@@ -45,8 +45,10 @@ export default function DiaryPage() {
   const [isDayPlanOpen, setIsDayPlanOpen] = useState(false);
   const [reviewRecipe, setReviewRecipe] = useState<Recipe | null>(null);
   useEffect(() => {
-    if (!new URLSearchParams(location.search).has('pesquisar')) return;
-    setIsRecipePickerOpen(true);
+    const search = new URLSearchParams(location.search);
+    if (!search.has('pesquisar') && !search.has('manual')) return;
+    if (search.has('pesquisar')) setIsRecipePickerOpen(true);
+    if (search.has('manual')) setIsManualMealModalOpen(true);
     navigate('/diario', { replace: true });
   }, [location.search, navigate]);
   const daily = entries.filter((entry) => entry.date === date);
